@@ -74,6 +74,7 @@ pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;max-heig
 
   <div class="row">
     <button class="primary" id="btnConnect">Conectar GLM 120 C</button>
+    <button id="btnAll">Procurar todos os aparelhos</button>
     <button id="btnDisconnect" disabled>Desconectar</button>
   </div>
 
@@ -175,10 +176,12 @@ function onData(ev){
   if(isFinite(m)&&m>0.01&&m<200) novaLeitura(m); else log('   valor fora da faixa: '+m);
 }
 
-async function conectar(){
+async function conectar(todos){
   try{
     setStatus('Procurando…','busy');
-    device=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]},{namePrefix:'GLM'}],optionalServices:[SVC]});
+    device=await navigator.bluetooth.requestDevice(todos
+      ?{acceptAllDevices:true,optionalServices:[SVC]}
+      :{filters:[{services:[SVC]},{namePrefix:'GLM'},{namePrefix:'Bosch'},{namePrefix:'BOSCH'}],optionalServices:[SVC]});
     device.addEventListener('gattserverdisconnected',()=>{setStatus('Desconectado');$('btnConnect').disabled=false;$('btnDisconnect').disabled=true;clearInterval(keepAlive);log('desconectou')});
     log('aparelho: '+(device.name||'(sem nome)'));
     const srv=await device.gatt.connect();
@@ -192,7 +195,8 @@ async function conectar(){
     try{wake=await navigator.wakeLock.request('screen')}catch(e){}
   }catch(e){setStatus('Desconectado');log('erro: '+e.message)}
 }
-$('btnConnect').onclick=conectar;
+$('btnConnect').onclick=()=>conectar(false);
+$('btnAll').onclick=()=>conectar(true);
 $('btnDisconnect').onclick=()=>{if(device&&device.gatt.connected)device.gatt.disconnect()};
 
 $('btnClear').onclick=()=>{if(!medidas.length)return;if($('btnClear').dataset.c){medidas=[];salvar();render();$('btnClear').textContent='Limpar';delete $('btnClear').dataset.c}else{$('btnClear').dataset.c=1;$('btnClear').textContent='Toque de novo p/ apagar tudo';setTimeout(()=>{$('btnClear').textContent='Limpar';delete $('btnClear').dataset.c},3000)}};
