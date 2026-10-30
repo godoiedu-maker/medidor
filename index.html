@@ -245,6 +245,8 @@ function pendencias(a){
   a.itens.forEach(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;const n=`${t.n} (parede ${letra(it.parede,a)})`;
     if(it.dist==null)r.push(n+': falta a distância');
     if(it.alt==null)r.push(n+': falta a altura do piso');
+    else if(a.peDireito&&it.alt>a.peDireito)r.push(n+`: altura ${it.alt} mm passa do pé-direito (${a.peDireito}) — confira`);
+    if(it.dist!=null&&(()=>{const w=a.paredes.find(x=>x.id===it.parede);return w&&w.L&&it.dist>w.L})())r.push(n+': distância maior que a parede — confira');
     if(t.ab&&(!it.larg||!it.h))r.push(n+': falta largura ou altura')});
   if(!a.fotos.length)r.push('Tirar ao menos uma foto do ambiente');
   return r;
@@ -343,6 +345,10 @@ function itemHTML(it){
     <div><label>${t.ab?(it.tipo==='viga'?'Altura até a base':'Altura do piso'):'Altura do piso'}</label>${inp('i','alt',it.alt,k+'alt',it.id)}</div>
     ${t.ab?`<div><label>Largura</label>${inp('i','larg',it.larg,k+'larg',it.id)}</div><div><label>Altura</label>${inp('i','h',it.h,k+'h',it.id)}</div>`:''}
   </div>
+  ${it.tipo==='porta'?`<div class="ig">
+    <div><label>Dobradiça</label><select data-o="i" data-id="${it.id}" data-f="dob"><option value="e"${it.dob!=='d'?' selected':''}>Lado esquerdo</option><option value="d"${it.dob==='d'?' selected':''}>Lado direito</option></select></div>
+    <div><label>Abre para</label><select data-o="i" data-id="${it.id}" data-f="abre"><option value="dentro"${it.abre!=='fora'?' selected':''}>Dentro do ambiente</option><option value="fora"${it.abre==='fora'?' selected':''}>Fora do ambiente</option></select></div>
+  </div>`:''}
   <div class="row"><input aria-label="Observação" data-o="i" data-id="${it.id}" data-f="obs" value="${esc(it.obs)}" placeholder="Obs. (ex.: 2 tomadas 220 V)">${fotoBtn('i',it.id)}</div>
   ${it.fotos.length?`<div class="thumbs">${it.fotos.map(f=>`<img data-foto="${f}" data-a="verFoto" data-id="${f}" data-dono="${it.id}" alt="Foto do ponto">`).join('')}</div>`:''}
   </div>`;
@@ -649,6 +655,7 @@ function dxf(p){
   const LN=(ly,a,b)=>g(0,'LINE',8,ly,10,N(a[0]),20,N(a[1]),30,N(a[2]),11,N(b[0]),21,N(b[1]),31,N(b[2]));
   const TX=(ly,x,y,h,t,r=0)=>g(0,'TEXT',8,ly,10,N(x),20,N(y),30,'0.00',40,N(h),1,asc(t)||'-',50,N(r));
   const CI=(ly,x,y,r)=>g(0,'CIRCLE',8,ly,10,N(x),20,N(y),30,'0.00',40,N(r));
+  const AR=(ly,x,y,r,a1,a2)=>g(0,'ARC',8,ly,10,N(x),20,N(y),30,'0.00',40,N(r),50,N(a1),51,N(a2));
   const F3=(ly,ps)=>{const arr=[0,'3DFACE',8,ly];ps.forEach((q,i)=>arr.push(10+i,N(q[0]),20+i,N(q[1]),30+i,N(q[2])));g(...arr)};
   for(const {a,g:G,ox} of geoProj(p)){
     const H=a.peDireito||0,ys=G.pts.map(q=>q.y),xs=G.pts.map(q=>q.x);
@@ -666,11 +673,29 @@ function dxf(p){
       const w=G.ws[i],t=TIPOS[it.tipo]||TIPOS.outro,d=it.dist||0,z=it.alt||0,r=rotTxt(w.ux,w.uy);
       const at=(dd,zz,off)=>[w.ax+w.ux*dd+w.ix*off+ox,w.ay+w.uy*dd+w.iy*off,zz];
       const nota=it.obs?' - '+it.obs:'';
-      if(t.ab){const d2=d+(it.larg||0),z2=z+(it.h||0);LN('ABERTURAS',at(d,0,40),at(d2,0,40));
-        const q=at(d,0,420);TX('ABERTURAS',q[0],q[1],80,`${t.n} ${Math.round(it.larg||0)}x${Math.round(it.h||0)} h${Math.round(z)}${nota}`,r);
-        if(it.larg&&it.h){const c=[at(d,z,2),at(d2,z,2),at(d2,z2,2),at(d,z2,2)];for(let k=0;k<4;k++)LN('ABERTURAS_3D',c[k],c[(k+1)%4])}
-      }else{const c=at(d,0,110);CI('PONTOS',c[0],c[1],50);TX('PONTOS',c[0]+80,c[1]-30,70,`${t.n} h${Math.round(z)}${nota}`);
-        const q=at(d,z,2);LN('PONTOS_3D',[q[0]-60*w.ux,q[1]-60*w.uy,z],[q[0]+60*w.ux,q[1]+60*w.uy,z]);LN('PONTOS_3D',[q[0],q[1],z-60],[q[0],q[1],z+60]);}
+      const E=150,L=it.larg||0,Hh=it.h||0,d2=d+L,z2=z+Hh;
+      const cat={porta:'PORTAS',janela:'JANELAS',vao:'ABERTURAS',viga:'ABERTURAS',tomada:'ELETRICA',interruptor:'ELETRICA',luz:'ELETRICA',ar:'ELETRICA',agua:'HIDRAULICA',esgoto:'HIDRAULICA',gas:'HIDRAULICA'}[it.tipo]||'PONTOS';
+      const pc=(uu,nn,zz)=>[w.ax+w.ux*uu+w.ox*nn+ox,w.ay+w.uy*uu+w.oy*nn,zz];
+      const B3=(ly,u0,u1,n0,n1,z0,z1)=>{const c=(a,b,cc)=>pc(a?u1:u0,b?n1:n0,cc?z1:z0);
+        [[c(0,0,0),c(1,0,0),c(1,1,0),c(0,1,0)],[c(0,0,1),c(1,0,1),c(1,1,1),c(0,1,1)],[c(0,0,0),c(1,0,0),c(1,0,1),c(0,0,1)],
+         [c(0,1,0),c(1,1,0),c(1,1,1),c(0,1,1)],[c(0,0,0),c(0,1,0),c(0,1,1),c(0,0,1)],[c(1,0,0),c(1,1,0),c(1,1,1),c(1,0,1)]].forEach(f=>F3(ly,f))};
+      if(t.ab){
+        if(it.tipo==='porta'&&L){const dentro=it.abre!=='fora',hd=it.dob==='d'?d2:d,nh=dentro?0:E,h0=pc(hd,nh,0);
+          const tu=Math.atan2(w.uy,w.ux)*180/Math.PI,fech=it.dob==='d'?tu+180:tu,abr=dentro?Math.atan2(w.iy,w.ix)*180/Math.PI:Math.atan2(w.oy,w.ox)*180/Math.PI;
+          const dif=((abr-fech)%360+360)%360,[a1,a2]=dif<=180?[fech,abr]:[abr,fech];
+          LN(cat,h0,[h0[0]+L*Math.cos(abr*Math.PI/180),h0[1]+L*Math.sin(abr*Math.PI/180),0]);AR(cat,h0[0],h0[1],L,a1,a2);
+          LN(cat,pc(d,0,0),pc(d,E,0));LN(cat,pc(d2,0,0),pc(d2,E,0));
+          if(Hh){const m=40;B3(cat+'_3D',d,d+m,-10,E+10,z,z2);B3(cat+'_3D',d2-m,d2,-10,E+10,z,z2);B3(cat+'_3D',d,d2,-10,E+10,z2-m,z2);B3(cat+'_3D',d+m+3,d2-m-3,E/2-17,E/2+18,z+10,z2-m-3)}}
+        else if(it.tipo==='janela'&&L){for(const nn of [0,E/2,E])LN(cat,pc(d,nn,0),pc(d2,nn,0));LN(cat,pc(d,0,0),pc(d,E,0));LN(cat,pc(d2,0,0),pc(d2,E,0));
+          if(Hh){const m=50;for(const [u0,u1,z0,zz] of [[d,d+m,z,z2],[d2-m,d2,z,z2],[d,d2,z,z+m],[d,d2,z2-m,z2]])B3(cat+'_3D',u0,u1,E/2-30,E/2+30,z0,zz);B3(cat+'_3D',d+m,d2-m,E/2-3,E/2+3,z+m,z2-m)}}
+        else{LN(cat,at(d,0,40),at(d2,0,40));if(L&&Hh){const c=[at(d,z,2),at(d2,z,2),at(d2,z2,2),at(d,z2,2)];for(let k=0;k<4;k++)LN(cat+'_3D',c[k],c[(k+1)%4])}}
+        const q=at(d,0,420);TX(cat,q[0],q[1],80,`${t.n} ${Math.round(L)}x${Math.round(Hh)} h${Math.round(z)}${nota}`,r);
+      }else{const c=at(d,0,110);CI(cat,c[0],c[1],50);TX(cat,c[0]+80,c[1]-30,70,`${t.n} h${Math.round(z)}${nota}`);
+        if(it.tipo==='tomada'||it.tipo==='interruptor')B3(cat+'_3D',d-38,d+38,-9,0,z-60,z+60);
+        else if(it.tipo==='luz')B3(cat+'_3D',d-50,d+50,-12,0,z-50,z+50);
+        else if(it.tipo==='ar')B3(cat+'_3D',d-90,d+90,-20,0,z-90,z+90);
+        else if(cat==='HIDRAULICA'){const rr=it.tipo==='esgoto'?25:it.tipo==='gas'?10:12.5;B3(cat+'_3D',d-rr,d+rr,-60,0,z-rr,z+rr)}
+        else{const q=at(d,z,2);LN(cat+'_3D',[q[0]-60*w.ux,q[1]-60*w.uy,z],[q[0]+60*w.ux,q[1]+60*w.uy,z]);LN(cat+'_3D',[q[0],q[1],z-60],[q[0],q[1],z+60])}}
     });
   }
   g(0,'ENDSEC',0,'EOF');return o.join('\r\n')+'\r\n';
@@ -692,7 +717,7 @@ async function macro(p){
       ws.push({nome:LETRAS[i],ax:w.ax+ox,ay:w.ay,ux:w.ux,uy:w.uy,L:w.L,esq:w.esq,ang:Math.atan2(w.uy,w.ux)*180/Math.PI,canto:+pw.ang||90,
         eS:i>0?+a.paredes[i-1].ang<180:(f&&+a.paredes[n-1].ang<180),eE:(i<n-1||f)&&+a.paredes[i].ang<180,obs:pw.obs||'',fotos})}
     ambs.push({nome:a.nome,H,fechado:f,pts,obs:a.obs||'',ws,
-      itens:a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return {nome:t.n,tipo:it.tipo,ab:!!t.ab,p:a.paredes.findIndex(w=>w.id===it.parede),dist:it.dist||0,alt:it.alt||0,larg:it.larg||0,h:it.h||0,obs:it.obs||''}})})}
+      itens:a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return {nome:t.n,tipo:it.tipo,ab:!!t.ab,p:a.paredes.findIndex(w=>w.id===it.parede),dist:it.dist||0,alt:it.alt||0,larg:it.larg||0,h:it.h||0,obs:it.obs||'',dob:it.dob||'e',abre:it.abre||'dentro'}})})}
   const D={titulo:p.cliente||'Medicao',endereco:p.endereco||'',ambientes:ambs};
   const json=JSON.stringify(D).replace(/'''/g,"' ' '");
   return `# -*- coding: utf-8 -*-
@@ -765,6 +790,50 @@ def foto(w, f, pai):
     o.Placement = App.Placement(centro, App.Rotation(V(0, 0, 1), giro).multiply(App.Rotation(V(1, 0, 0), 90)))
     pai.addObject(o)
 
+def caixa_comp(w, partes):
+    return Part.makeCompound([caixa(w, *pp) for pp in partes])
+
+def modelo(w, it, gp):
+    d, z, L, Hh, t = it['dist'], it['alt'], it['larg'], it['h'], it['tipo']
+    u = V(w['ux'], w['uy'], 0)
+    esq = V(-w['uy'], w['ux'], 0)
+    dentro = esq * (-1 if w['esq'] else 1)
+    base = V(w['ax'], w['ay'], 0) + u * d + V(0, 0, z)
+    if t == 'porta' and L > 0 and Hh > 0:
+        m = 40.0
+        batente = caixa_comp(w, [(d, d + m, -10, ESP + 10, z, z + Hh), (d + L - m, d + L, -10, ESP + 10, z, z + Hh), (d, d + L, -10, ESP + 10, z + Hh - m, z + Hh)])
+        o = doc.addObject('Part::Feature', 'Batente'); o.Shape = batente; o.Label = 'Batente porta'; visual(o, (0.55, 0.38, 0.22)); gp.addObject(o)
+        f = doc.addObject('Part::Feature', 'Porta')
+        f.Shape = caixa(w, d + m + 3, d + L - m - 3, ESP / 2 - 17, ESP / 2 + 18, z + 10, z + Hh - m - 3)
+        f.Label = 'Folha %dx%d' % (round(L - 2 * m - 6), round(Hh - m - 13)); visual(f, (0.72, 0.52, 0.32)); gp.addObject(f)
+        return f
+    if t == 'janela' and L > 0 and Hh > 0:
+        m = 50.0
+        partes = [(d, d + m, ESP / 2 - 30, ESP / 2 + 30, z, z + Hh), (d + L - m, d + L, ESP / 2 - 30, ESP / 2 + 30, z, z + Hh),
+                  (d, d + L, ESP / 2 - 30, ESP / 2 + 30, z, z + m), (d, d + L, ESP / 2 - 30, ESP / 2 + 30, z + Hh - m, z + Hh)]
+        if L > 800:
+            partes.append((d + L / 2 - m / 2, d + L / 2 + m / 2, ESP / 2 - 30, ESP / 2 + 30, z, z + Hh))
+        o = doc.addObject('Part::Feature', 'Caixilho'); o.Shape = caixa_comp(w, partes); o.Label = 'Caixilho janela'; visual(o, (0.82, 0.84, 0.86)); gp.addObject(o)
+        v = doc.addObject('Part::Feature', 'Vidro'); v.Shape = caixa(w, d + m, d + L - m, ESP / 2 - 3, ESP / 2 + 3, z + m, z + Hh - m)
+        v.Label = 'Vidro'; visual(v, (0.55, 0.78, 0.92), 70); gp.addObject(v)
+        return o
+    if t in ('tomada', 'interruptor'):
+        o = doc.addObject('Part::Feature', 'Placa'); o.Shape = caixa(w, d - 38, d + 38, -9, 0, z - 60, z + 60)
+        visual(o, (0.95, 0.95, 0.93)); gp.addObject(o); return o
+    if t == 'luz':
+        o = doc.addObject('Part::Feature', 'Luz'); o.Shape = caixa(w, d - 50, d + 50, -12, 0, z - 50, z + 50)
+        visual(o, (0.98, 0.86, 0.3)); gp.addObject(o); return o
+    if t == 'ar':
+        o = doc.addObject('Part::Feature', 'Ar'); o.Shape = caixa(w, d - 90, d + 90, -20, 0, z - 90, z + 90)
+        visual(o, (0.09, 0.65, 0.58)); gp.addObject(o); return o
+    tubos = {'agua': (12.5, 60, (0.11, 0.56, 0.84)), 'esgoto': (25.0, 50, (0.48, 0.32, 0.19)), 'gas': (10.0, 60, (0.95, 0.75, 0.1))}
+    if t in tubos:
+        r, comp, cor = tubos[t]
+        o = doc.addObject('Part::Feature', 'Cano'); o.Shape = Part.makeCylinder(r, comp, base, dentro)
+        visual(o, cor); gp.addObject(o); return o
+    o = doc.addObject('Part::Feature', 'Ponto'); o.Shape = Part.makeSphere(40, base)
+    visual(o, (0.4, 0.4, 0.4)); gp.addObject(o); return o
+
 CORES = {'tomada': (0.84, 0.6, 0.0), 'interruptor': (0.79, 0.5, 0.0), 'luz': (0.88, 0.7, 0.0), 'agua': (0.11, 0.56, 0.84),
          'esgoto': (0.48, 0.32, 0.19), 'gas': (0.84, 0.27, 0.11), 'ar': (0.09, 0.65, 0.58)}
 
@@ -819,15 +888,16 @@ for a in D['ambientes']:
             o = doc.addObject('Part::Feature', 'Viga')
             o.Shape = caixa(w, it['dist'], it['dist'] + it['larg'], -100, 0, it['alt'], it['alt'] + it['h'])
             visual(o, (0.55, 0.31, 0.69), 50)
+            gps[it['p']].addObject(o)
+        elif it['tipo'] in ('porta', 'janela'):
+            if it['larg'] <= 0 or it['h'] <= 0:
+                continue
+            o = modelo(w, it, gps[it['p']])
         elif it['ab']:
             continue
         else:
-            c = V(w['ax'], w['ay'], 0) + V(w['ux'], w['uy'], 0) * it['dist'] + V(0, 0, it['alt'])
-            o = doc.addObject('Part::Feature', 'Ponto')
-            o.Shape = Part.makeSphere(40, c)
-            visual(o, CORES.get(it['tipo'], (0.4, 0.4, 0.4)))
+            o = modelo(w, it, gps[it['p']])
         o.Label = rot
-        gps[it['p']].addObject(o)
     if a['fechado'] and len(a['pts']) > 3:
         try:
             f = Part.Face(Part.makePolygon([V(x, y, 0) for x, y in a['pts']]))
