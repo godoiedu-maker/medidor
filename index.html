@@ -184,6 +184,7 @@ let tT;function toast(t,ms=2600){const e=$('#toast');e.textContent=t;e.hidden=fa
 function dupla(b){if(b.dataset.c){delete b.dataset.c;return true}const o=b.textContent;b.dataset.c=1;b.textContent='Toque de novo para confirmar';setTimeout(()=>{if(b.dataset.c){delete b.dataset.c;b.textContent=o}},3000);return false}
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
+const PLACAS=[['T','1 tomada (4x2)'],['TT','2 tomadas (4x2)'],['TTT','3 tomadas (4x2)'],['I','1 interruptor (4x2)'],['II','2 interruptores (4x2)'],['III','3 interruptores (4x2)'],['IT','1 interruptor + tomada'],['IIT','2 interruptores + tomada'],['ITT','1 interruptor + 2 tomadas'],['TTTT','4 tomadas (4x4)'],['TTTTTT','6 tomadas (4x4)'],['IIITTT','3 interruptores + 3 tomadas (4x4)']];
 const TIPOS={
   porta:{n:'Porta',ab:1,cor:'#b8682c'},
   janela:{n:'Janela',ab:1,cor:'#2c80b8'},
@@ -348,6 +349,12 @@ function itemHTML(it){
   ${it.tipo==='porta'?`<div class="ig">
     <div><label>Dobradiça</label><select data-o="i" data-id="${it.id}" data-f="dob"><option value="e"${it.dob!=='d'?' selected':''}>Lado esquerdo</option><option value="d"${it.dob==='d'?' selected':''}>Lado direito</option></select></div>
     <div><label>Abre para</label><select data-o="i" data-id="${it.id}" data-f="abre"><option value="dentro"${it.abre!=='fora'?' selected':''}>Dentro do ambiente</option><option value="fora"${it.abre==='fora'?' selected':''}>Fora do ambiente</option></select></div>
+    <div><label>Acabamento</label><select data-o="i" data-id="${it.id}" data-f="acab"><option value="madeira"${it.acab!=='branca'?' selected':''}>Madeira</option><option value="branca"${it.acab==='branca'?' selected':''}>Branca</option></select></div>
+  </div>`:''}
+  ${it.tipo==='janela'?`<div class="ig"><div><label>Modelo (alumínio preto)</label><select data-o="i" data-id="${it.id}" data-f="modelo">${[['','Automático'],['correr','De correr (2 folhas)'],['maximar','Maxim-ar'],['fixa','Fixa']].map(([v,n])=>`<option value="${v}"${(it.modelo||'')===v?' selected':''}>${n}</option>`).join('')}</select></div></div>`:''}
+  ${it.tipo==='tomada'||it.tipo==='interruptor'?`<div class="ig">
+    <div><label>Placa</label><select data-o="i" data-id="${it.id}" data-f="mods">${PLACAS.map(([v,n])=>`<option value="${v}"${(it.mods||(it.tipo==='interruptor'?'I':'T'))===v?' selected':''}>${n}</option>`).join('')}</select></div>
+    <label class="chk" style="align-self:end"><input type="checkbox" data-o="i" data-id="${it.id}" data-f="v220" data-t="b"${it.v220?' checked':''}> Tomada 20 A / 220 V (vermelha)</label>
   </div>`:''}
   <div class="row"><input aria-label="Observação" data-o="i" data-id="${it.id}" data-f="obs" value="${esc(it.obs)}" placeholder="Obs. (ex.: 2 tomadas 220 V)">${fotoBtn('i',it.id)}</div>
   ${it.fotos.length?`<div class="thumbs">${it.fotos.map(f=>`<img data-foto="${f}" data-a="verFoto" data-id="${f}" data-dono="${it.id}" alt="Foto do ponto">`).join('')}</div>`:''}
@@ -717,7 +724,7 @@ async function macro(p){
       ws.push({nome:LETRAS[i],ax:w.ax+ox,ay:w.ay,ux:w.ux,uy:w.uy,L:w.L,esq:w.esq,ang:Math.atan2(w.uy,w.ux)*180/Math.PI,canto:+pw.ang||90,
         eS:i>0?+a.paredes[i-1].ang<180:(f&&+a.paredes[n-1].ang<180),eE:(i<n-1||f)&&+a.paredes[i].ang<180,obs:pw.obs||'',fotos})}
     ambs.push({nome:a.nome,H,fechado:f,pts,obs:a.obs||'',ws,
-      itens:a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return {nome:t.n,tipo:it.tipo,ab:!!t.ab,p:a.paredes.findIndex(w=>w.id===it.parede),dist:it.dist||0,alt:it.alt||0,larg:it.larg||0,h:it.h||0,obs:it.obs||'',dob:it.dob||'e',abre:it.abre||'dentro'}})})}
+      itens:a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return {nome:t.n,tipo:it.tipo,ab:!!t.ab,p:a.paredes.findIndex(w=>w.id===it.parede),dist:it.dist||0,alt:it.alt||0,larg:it.larg||0,h:it.h||0,obs:it.obs||'',dob:it.dob||'e',abre:it.abre||'dentro',acab:it.acab||'',modelo:it.modelo||'',mods:it.mods||'',v220:!!it.v220}})})}
   const D={titulo:p.cliente||'Medicao',endereco:p.endereco||'',ambientes:ambs};
   const json=JSON.stringify(D).replace(/'''/g,"' ' '");
   return `# -*- coding: utf-8 -*-
