@@ -462,18 +462,26 @@ function onData(ev){const dv=ev.target.value,h=hex(dv);log('← '+h);
   if(dv.byteLength>=7&&dv.getUint8(0)===0x00&&dv.getUint8(1)===0x04){const mm=Math.round(dv.getUint32(2,true)*0.05);if(mm>10&&mm<300000)receber(mm);return}
   // envio automático da trena: C0 55 10 ... float metros no byte 7
   if(dv.byteLength<11||dv.getUint8(0)!==0xC0||dv.getUint8(1)!==0x55||dv.getUint8(2)!==0x10)return;
+  const tipo=dv.getUint8(3);if(tipo===0x02){laserOn=true;laserT=Date.now();atualizarFab();return}if(tipo===0x06){laserOn=false;setTimeout(atualizarFab,0)}
   const now=Date.now();if(h===ultPkt&&now-ultT<1500)return;ultPkt=h;ultT=now;
   const m=dv.getFloat32(7,true);
   if(isFinite(m)&&m>0.01&&m<300)receber(Math.round(m*1000));else log('   valor fora da faixa: '+m)}
-const CMD_MEDIR=new Uint8Array([0xC0,0x40,0x00,0xEE]),CMD_LASER=new Uint8Array([0xC0,0x41,0x00,0x96]),CMD_DESL=new Uint8Array([0xC0,0x42,0x00,0x1E]);
+// Comando confirmado na GLM 150-27 C (gravado do MeasureOn): equivale a apertar o botão da trena.
+// 1º envio acende o laser; 2º envio mede.
+const CMD_BOTAO=new Uint8Array([0xC0,0x56,0x01,0x00,0x1E]);
 let laserOn=false;
 async function enviar(cmd,nome){if(!chr||!device||!device.gatt.connected){toast('Conecte a trena primeiro');return false}
   try{await chr.writeValue(cmd);log('→ '+hex(new DataView(cmd.buffer))+' ('+nome+')');return true}catch(e){log('erro ao enviar '+nome+': '+e.message);toast('A trena não respondeu: '+e.message,3500);return false}}
-async function medirRemoto(){const b=$('#fabMedir');b.disabled=true;b.textContent='Medindo…';
-  if(await enviar(CMD_MEDIR,'medir'))laserOn=false;
-  setTimeout(()=>{b.disabled=false;b.textContent='MEDIR'},1200);atualizarFab()}
-async function alternarLaser(){if(await enviar(laserOn?CMD_DESL:CMD_LASER,laserOn?'laser desligar':'laser ligar')){laserOn=!laserOn;atualizarFab()}}
-function atualizarFab(){const on=!!(device&&device.gatt.connected);$('#fab').hidden=!on;$('#fabLaser').textContent=laserOn?'Desligar laser':'Ligar laser (mirar)';$('#fabLaser').classList.toggle('on',laserOn)}
+let laserT=0;const esperar=ms=>new Promise(r=>setTimeout(r,ms));
+const laserAceso=()=>laserOn&&Date.now()-laserT<18000;
+async function medirRemoto(){const b=$('#fabMedir');if(b.disabled)return;b.disabled=true;b.textContent='Medindo…';
+  try{if(!laserAceso()){if(!await enviar(CMD_BOTAO,'botão: laser'))return;await esperar(900)}
+    await enviar(CMD_BOTAO,'botão: medir');laserOn=false}
+  finally{setTimeout(()=>{b.disabled=false;b.textContent='MEDIR';atualizarFab()},900)}}
+async function alternarLaser(){if(laserAceso()){toast('Laser aceso: toque em MEDIR');return}
+  if(await enviar(CMD_BOTAO,'botão: laser')){laserOn=true;laserT=Date.now();atualizarFab();setTimeout(atualizarFab,18500)}}
+function atualizarFab(){const on=!!(device&&device.gatt.connected);$('#fab').hidden=!on;const a=laserAceso();
+  $('#fabLaser').textContent=a?'Laser aceso — mire e meça':'Ligar laser (mirar)';$('#fabLaser').classList.toggle('on',a)}
 async function conectar(todos){
   if(!('bluetooth' in navigator)){toast('Bluetooth indisponível: abra pelo Chrome',4000);return}
   try{btStatus('Procurando…','busy');
