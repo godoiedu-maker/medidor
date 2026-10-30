@@ -1,0 +1,16 @@
+{
+  "name": "Medidor GLM",
+  "short_name": "Medidor",
+  "description": "Medição de ambientes com a trena Bosch, fotos e exportação para FreeCAD, SketchUp, CAD e Revit",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14201b",
+  "theme_color": "#14201b",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
