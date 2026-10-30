@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d2a24">
+<title>Medidor GLM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Barlow:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: uma coluna de oficina — leitura gigante em cima, lista de medidas embaixo */
+:root{
+  --bg:#f3f1ec; --panel:#ffffff; --fg:#1d2a24; --muted:#6a746e; --line:#d9d6cd;
+  --accent:#0f6b4f; --accent-fg:#ffffff; --laser:#c8321e; --warn:#a86a00;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"Barlow",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#121815; --panel:#1b231f; --fg:#e6ece8; --muted:#93a099; --line:#2c3732;
+  --accent:#3bb88a; --accent-fg:#0b1310; --laser:#ff6a52; --warn:#e0a640; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--body);
+  padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font:700 1.6rem/1 var(--display);letter-spacing:.02em;margin:0;text-transform:uppercase}
+.status{display:flex;align-items:center;gap:8px;font:600 .8rem var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--line)}
+.on .dot{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
+.busy .dot{background:var(--warn)}
+button{font:600 1rem var(--body);border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:12px 16px;min-height:48px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--laser);outline-offset:2px}
+button:disabled{opacity:.5}
+.reading{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.big{font:700 clamp(4rem,18vw,8rem)/1 var(--display);font-variant-numeric:tabular-nums;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px}
+.big small{font:500 1.6rem var(--display);color:var(--muted)}
+.big.fresh{color:var(--laser)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row > *{flex:1 1 160px}
+label{font:600 .75rem var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:block;margin-bottom:4px}
+input,select{width:100%;font:1.05rem var(--body);padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);min-height:48px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{min-height:40px;padding:8px 12px;font-size:.9rem}
+.chips button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+h2{font:700 1.2rem var(--display);text-transform:uppercase;letter-spacing:.04em;margin:0}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font:600 .72rem var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+td.mm{font:600 1.15rem var(--mono);text-align:right;white-space:nowrap}
+td.x{width:44px;text-align:right}
+td.x button{min-height:36px;padding:4px 10px}
+.empty{color:var(--muted);padding:12px 0}
+.msg{border-left:4px solid var(--warn);background:var(--panel);padding:12px 14px;border-radius:6px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+summary{cursor:pointer;font-weight:600}
+pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;max-height:240px;overflow:auto;margin:8px 0 0}
+.tbl{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Medidor GLM</h1>
+    <div class="status" id="status"><span class="dot"></span><span id="statusTxt">Desconectado</span></div>
+  </header>
+
+  <div class="msg" id="noBt" hidden>
+    Este navegador não tem Bluetooth Web. Abra esta página no <b>Chrome do tablet</b>, por um endereço <b>https://</b>.
+  </div>
+
+  <div class="row">
+    <button class="primary" id="btnConnect">Conectar GLM 120 C</button>
+    <button id="btnDisconnect" disabled>Desconectar</button>
+  </div>
+
+  <section class="reading" aria-live="polite">
+    <label>Última leitura</label>
+    <div class="big" id="big">— <small>mm</small></div>
+    <div class="row">
+      <div><label for="ambiente">Ambiente</label><input id="ambiente" placeholder="Ex.: Cozinha"></div>
+      <div><label for="nome">Nome da próxima medida</label><input id="nome" placeholder="Ex.: Parede A largura"></div>
+    </div>
+    <div>
+      <label>Tipo</label>
+      <div class="chips" id="tipos">
+        <button aria-pressed="true">Parede</button>
+        <button aria-pressed="false">Pé-direito</button>
+        <button aria-pressed="false">Vão / janela</button>
+        <button aria-pressed="false">Tomada</button>
+        <button aria-pressed="false">Água / esgoto</button>
+        <button aria-pressed="false">Diagonal (esquadro)</button>
+        <button aria-pressed="false">Outro</button>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="flex:0 1 auto">Medidas (<span id="count">0</span>)</h2>
+      <div class="row" style="flex:0 1 auto">
+        <button id="btnCsv">Copiar CSV</button>
+        <button id="btnClear">Limpar</button>
+      </div>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>#</th><th>Ambiente</th><th>Medida</th><th>Tipo</th><th style="text-align:right">mm</th><th></th></tr></thead>
+        <tbody id="lista"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="vazio">Conecte a trena e aperte o botão de medir na GLM. Cada leitura entra aqui com o nome que estiver no campo acima.</div>
+  </section>
+
+  <details>
+    <summary>Diagnóstico (dados brutos do Bluetooth)</summary>
+    <pre id="log"></pre>
+    <button id="btnCopyLog" style="margin-top:8px">Copiar diagnóstico</button>
+  </details>
+</div>
+
+<script>
+const SVC  = '02a6c0d0-0451-4000-b000-fb3210111989';
+const CHR  = '02a6c0d1-0451-4000-b000-fb3210111989';
+const SYNC = new Uint8Array([0xC0,0x55,0x02,0x01,0x00,0x1A]); // liga envio automático de cada medida
+
+let device=null, chr=null, wake=null, keepAlive=null, lastPkt='';
+const $=id=>document.getElementById(id);
+const logLines=[];
+function log(t){const s=new Date().toLocaleTimeString()+'  '+t;logLines.push(s);if(logLines.length>200)logLines.shift();$('log').textContent=logLines.join('\n')}
+const hex=dv=>[...new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength)].map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
+
+function setStatus(txt,cls){$('statusTxt').textContent=txt;$('status').className='status '+(cls||'')}
+
+// ---- lista de medidas (salva no próprio tablet) ----
+let medidas=[];
+try{medidas=JSON.parse(localStorage.getItem('glm_medidas')||'[]')}catch(e){}
+try{$('ambiente').value=localStorage.getItem('glm_amb')||''}catch(e){}
+function salvar(){try{localStorage.setItem('glm_medidas',JSON.stringify(medidas));localStorage.setItem('glm_amb',$('ambiente').value)}catch(e){}}
+function tipoAtual(){return [...$('tipos').children].find(b=>b.getAttribute('aria-pressed')==='true').textContent}
+$('tipos').addEventListener('click',e=>{if(e.target.tagName!=='BUTTON')return;[...$('tipos').children].forEach(b=>b.setAttribute('aria-pressed',b===e.target))});
+$('ambiente').addEventListener('change',salvar);
+
+function render(){
+  const tb=$('lista');tb.innerHTML='';
+  medidas.forEach((m,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td><td></td><td></td><td></td><td class="mm">${m.mm}</td><td class="x"><button aria-label="Apagar">✕</button></td>`;
+    tr.children[1].textContent=m.amb;tr.children[2].textContent=m.nome;tr.children[3].textContent=m.tipo;
+    tr.querySelector('button').onclick=()=>{medidas.splice(i,1);salvar();render()};
+    tb.appendChild(tr);
+  });
+  $('count').textContent=medidas.length;$('vazio').hidden=medidas.length>0;
+}
+render();
+
+function novaLeitura(metros){
+  const mm=Math.round(metros*1000);
+  const big=$('big');big.innerHTML=`${mm.toLocaleString('pt-BR')} <small>mm</small>`;
+  big.classList.add('fresh');setTimeout(()=>big.classList.remove('fresh'),900);
+  medidas.push({amb:$('ambiente').value.trim()||'—',nome:$('nome').value.trim()||('Medida '+(medidas.length+1)),tipo:tipoAtual(),mm,quando:new Date().toISOString()});
+  $('nome').value='';salvar();render();
+  if(navigator.vibrate)navigator.vibrate(60);
+}
+
+// ---- decodificação do pacote da Bosch ----
+function onData(ev){
+  const dv=ev.target.value; const h=hex(dv); log('← '+h);
+  if(dv.byteLength<11||dv.getUint8(0)!==0xC0||dv.getUint8(1)!==0x55||dv.getUint8(2)!==0x10)return;
+  if(h===lastPkt)return; lastPkt=h;           // a trena às vezes repete o mesmo pacote
+  const m=dv.getFloat32(7,true);              // distância em metros, float little-endian
+  if(isFinite(m)&&m>0.01&&m<200) novaLeitura(m); else log('   valor fora da faixa: '+m);
+}
+
+async function conectar(){
+  try{
+    setStatus('Procurando…','busy');
+    device=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]},{namePrefix:'GLM'}],optionalServices:[SVC]});
+    device.addEventListener('gattserverdisconnected',()=>{setStatus('Desconectado');$('btnConnect').disabled=false;$('btnDisconnect').disabled=true;clearInterval(keepAlive);log('desconectou')});
+    log('aparelho: '+(device.name||'(sem nome)'));
+    const srv=await device.gatt.connect();
+    chr=await (await srv.getPrimaryService(SVC)).getCharacteristic(CHR);
+    chr.addEventListener('characteristicvaluechanged',onData);
+    await chr.startNotifications();
+    await chr.writeValue(SYNC); log('→ C0 55 02 01 00 1A (modo sincronizado)');
+    keepAlive=setInterval(()=>chr&&chr.writeValue(SYNC).catch(()=>{}),20000);
+    setStatus('Conectado: '+(device.name||'GLM'),'on');
+    $('btnConnect').disabled=true;$('btnDisconnect').disabled=false;
+    try{wake=await navigator.wakeLock.request('screen')}catch(e){}
+  }catch(e){setStatus('Desconectado');log('erro: '+e.message)}
+}
+$('btnConnect').onclick=conectar;
+$('btnDisconnect').onclick=()=>{if(device&&device.gatt.connected)device.gatt.disconnect()};
+
+$('btnClear').onclick=()=>{if(!medidas.length)return;if($('btnClear').dataset.c){medidas=[];salvar();render();$('btnClear').textContent='Limpar';delete $('btnClear').dataset.c}else{$('btnClear').dataset.c=1;$('btnClear').textContent='Toque de novo p/ apagar tudo';setTimeout(()=>{$('btnClear').textContent='Limpar';delete $('btnClear').dataset.c},3000)}};
+async function copiar(txt,btn,ok){try{await navigator.clipboard.writeText(txt);const o=btn.textContent;btn.textContent=ok;setTimeout(()=>btn.textContent=o,1500)}catch(e){prompt('Copie:',txt)}}
+$('btnCsv').onclick=()=>copiar('ambiente;medida;tipo;mm;data\n'+medidas.map(m=>[m.amb,m.nome,m.tipo,m.mm,m.quando].join(';')).join('\n'),$('btnCsv'),'Copiado ✓');
+$('btnCopyLog').onclick=()=>copiar(logLines.join('\n'),$('btnCopyLog'),'Copiado ✓');
+
+if(!('bluetooth' in navigator)){$('noBt').hidden=false;$('btnConnect').disabled=true}
+</script>
+</body>
+</html>
