@@ -147,7 +147,7 @@ pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;backgrou
   <button data-a="mDiag">Diagnóstico do Bluetooth</button>
 </div>
 <main id="main"></main>
-<input type="file" id="impFile" accept=".json,application/json" hidden>
+<input type="file" id="impFile" accept=".json,.txt,application/json,text/plain" hidden>
 <div id="fab" class="fab" hidden>
   <button id="fabLaser" type="button">Ligar laser (mirar)</button>
   <button id="fabMedir" type="button" class="fabm">MEDIR</button>
@@ -325,7 +325,7 @@ function telaLista(){
   ${ps.length?`<div class="cards">${ps.map(p=>{const n=p.ambientes.reduce((s,a)=>s+pendencias(a).length,0);
     return `<button class="card" data-a="abrirProj" data-id="${p.id}"><b>${esc(p.cliente||'Sem nome')}</b><span class="meta">${esc(p.endereco||'')}</span><span class="meta">${p.ambientes.length} ambiente(s) · ${new Date(p.criado).toLocaleDateString('pt-BR')}</span>${!p.ambientes.length?'<span class="pill warn">sem ambientes</span>':n?`<span class="pill warn">${n} pendência(s)</span>`:'<span class="pill ok">completo</span>'}${pendBk(p)?'<span class="pill warn">☁ backup pendente</span>':''}</button>`}).join('')}</div>`
   :`<div class="vazio"><p><b>Nenhum projeto ainda.</b></p><p>Crie um projeto para o cliente, adicione os ambientes e meça cada parede com a trena. Tudo fica salvo neste aparelho, mesmo sem internet.</p></div>`}
-  <div><button data-a="importar">Abrir backup (.json)</button></div>
+  <div><button data-a="importar">Abrir backup (.txt / .json)</button></div>
   </section>`;
 }
 
@@ -1071,9 +1071,9 @@ async function backupOneDrive(btn){
     return}
   // 1º toque: monta o arquivo
   btn.disabled=true;btn.textContent='Preparando…';
-  try{const txt=await backup(p),nome=slug(p.cliente)+'_medicao.json';
-    let f=new File([txt],nome,{type:'application/json'});
-    if(navigator.canShare&&!navigator.canShare({files:[f]}))f=new File([txt],nome,{type:'text/plain'});
+  try{const txt=await backup(p),nome=slug(p.cliente)+'_medicao.txt';
+    // o Chrome do Android só compartilha alguns tipos (txt, imagem, pdf...): .json é recusado
+    const f=new File([txt],nome,{type:'text/plain'});
     bkPronto={pid:p.id,ver:p.alterado||0,file:f};
     render();toast('Backup pronto: toque em "Enviar para o OneDrive"',3500)}
   catch(e){toast('Não consegui montar o backup: '+e.message,4500);btn.disabled=false;btn.textContent='Salvar no OneDrive'}}
