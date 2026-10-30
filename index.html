@@ -82,7 +82,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,.btn:focus-within{
 .pend ul{margin:6px 0 0;padding-left:20px}
 .dica{margin:0;color:var(--muted);font-size:.88rem}
 .walls{display:flex;flex-direction:column;gap:8px}
-.wrow{display:grid;grid-template-columns:40px minmax(0,1fr) 96px 44px;gap:8px;align-items:end;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel)}
+.wrow{display:grid;grid-template-columns:36px minmax(0,1fr) 88px 60px 40px;gap:8px;align-items:end;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel)}
 .wrow.sel{border-color:var(--laser)}
 .wrow .lt{font:700 1.4rem var(--mono);text-align:center;align-self:center}
 .wrow.sel .lt{color:var(--laser)}
@@ -97,7 +97,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,.btn:focus-within{
 .thumbs img{width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:var(--room)}
 .menu{position:fixed;right:max(10px,env(safe-area-inset-right));top:calc(60px + env(safe-area-inset-top));z-index:30;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px;display:flex;flex-direction:column;min-width:240px;box-shadow:0 10px 30px #0004}
 .menu button{border:0;justify-content:flex-start;background:transparent}
-.fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:35;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:70;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .fab button{box-shadow:0 6px 18px #0005}
 .fab #fabLaser{min-height:44px;font-size:.85rem}
 .fab #fabLaser.on{background:var(--laser);color:#fff;border-color:var(--laser)}
@@ -107,6 +107,21 @@ main{padding-bottom:140px!important}
 .canto{grid-column:1/-1;border-top:1px dashed var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
 .canto .res{font:700 1.3rem var(--mono)}
 .angb{min-height:48px;width:100%;font-family:var(--mono)}
+.editor{position:fixed;inset:0;z-index:60;background:#0b0f0d;color:#eef3f0;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.editor button{background:#1f2a25;color:#eef3f0;border-color:#33433b}
+.editor button.primary{background:#3bb88a;color:#08110d;border-color:#3bb88a}
+.edtop{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px}
+.tools{display:flex;gap:6px;flex-wrap:wrap}
+.tools button[aria-pressed="true"]{background:#eef3f0;color:#0b0f0d}
+.cores{display:flex;gap:8px}
+.cores button{width:36px;height:36px;min-height:36px;padding:0;border-radius:50%;background:var(--k);border:3px solid #33433b}
+.cores button[aria-pressed="true"]{border-color:#eef3f0;outline:2px solid #0b0f0d}
+.edwrap{flex:1;min-height:0;display:grid;place-items:center;overflow:hidden;padding:4px}
+#edc{touch-action:none;max-width:100%;max-height:100%;border-radius:4px}
+.edbar{min-height:72px;padding:10px max(140px,env(safe-area-inset-right)) 10px 12px;background:#141c18;display:flex;gap:10px;align-items:center;flex-wrap:wrap;color:#cfdad4}
+.edbar input{background:#0b0f0d;color:#eef3f0;border-color:#33433b;max-width:260px}
+.edbar input.alvo{border-color:#ff5a3c;box-shadow:0 0 0 3px #ff5a3c55}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom));z-index:40;background:var(--fg);color:var(--bg);padding:12px 18px;border-radius:10px;font-weight:600;max-width:min(92vw,560px);text-align:center}
 .viewer{position:fixed;inset:0;z-index:50;background:#000e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
 .viewer img{max-width:100%;max-height:80vh;border-radius:8px}
@@ -139,7 +154,20 @@ pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;backgrou
 <div id="toast" class="toast" hidden></div>
 <div id="viewer" class="viewer" hidden>
   <img id="vimg" alt="Foto">
-  <div class="row"><button id="vdel" class="danger">Apagar foto</button><button id="vclose" class="primary">Fechar</button></div>
+  <div class="row wrap"><button id="vedit">✏️ Anotar medidas</button><button id="vdel" class="danger">Apagar foto</button><button id="vclose" class="primary">Fechar</button></div>
+</div>
+<div id="editor" class="editor" hidden>
+  <div class="edtop">
+    <div class="tools" id="edTools" role="toolbar" aria-label="Ferramentas">
+      <button data-t="cota">↔ Cota</button><button data-t="seta">↗ Seta</button><button data-t="texto">T Nota</button><button data-t="mover">✋ Mover</button>
+    </div>
+    <div class="cores" id="edCores" aria-label="Cor">
+      <button data-c="#ffd400" style="--k:#ffd400" aria-label="Amarelo"></button><button data-c="#ff3b2f" style="--k:#ff3b2f" aria-label="Vermelho"></button><button data-c="#2fd3ff" style="--k:#2fd3ff" aria-label="Azul"></button><button data-c="#ffffff" style="--k:#ffffff" aria-label="Branco"></button>
+    </div>
+    <div class="row"><button id="edUndo">Desfazer</button><button id="edCancel">Cancelar</button><button id="edSave" class="primary">Salvar</button></div>
+  </div>
+  <div class="edwrap" id="edWrap"><canvas id="edc"></canvas></div>
+  <div class="edbar" id="edBar"></div>
 </div>
 
 <script>
@@ -205,6 +233,7 @@ function geo(a){
   const fechado=fech!=null&&fech<20&&a.paredes.every(w=>w.L);
   return {pts,ws,fech,fechado};
 }
+const fotosAmb=a=>[...a.fotos,...a.paredes.flatMap(w=>w.fotos||[]),...a.itens.flatMap(i=>i.fotos)];
 const rotTxt=(ux,uy)=>{let r=Math.atan2(uy,ux)*180/Math.PI;if(r>90)r-=180;if(r<=-90)r+=180;return r};
 
 /* ================= pendências ================= */
@@ -290,7 +319,8 @@ function telaProjeto(){
   <div class="bar"><h2>Exportar</h2></div>
   <div class="exp">
     <button data-a="exp" data-f="dxf"><b>DXF (CAD)</b><span>AutoCAD, SketchUp, Revit e FreeCAD: planta 2D e paredes 3D</span></button>
-    <button data-a="exp" data-f="fc"><b>Macro FreeCAD</b><span>Monta as paredes 3D com vãos, piso e pontos</span></button>
+    <button data-a="exp" data-f="zip"><b>Pacote completo (.zip)</b><span>DXF, macro, relatório, planilha e fotos separadas por parede</span></button>
+    <button data-a="exp" data-f="fc"><b>Macro FreeCAD</b><span>Paredes 3D com vãos, pontos, notas e fotos, uma pasta por parede</span></button>
     <button data-a="exp" data-f="rel"><b>Relatório com fotos</b><span>Página única com plantas, medidas e fotos</span></button>
     <button data-a="exp" data-f="csv"><b>Planilha CSV</b><span>Todas as medidas em linhas, abre no Excel</span></button>
     <button data-a="exp" data-f="json"><b>Backup completo</b><span>Com fotos, para abrir em outro aparelho</span></button>
@@ -341,8 +371,9 @@ function telaAmb(){
       <span class="lt">${LETRAS[i]}</span>
       <div><label>Comprimento</label>${inp('w','L',w.L,'w:'+w.id,w.id)}</div>
       <div><label>Canto</label><button class="angb" data-a="canto" data-id="${w.id}">${fmtAng(w.ang)}°</button></div>
+      <div><label>Ficha</label><button class="angb" data-a="ficha" data-id="${w.id}" aria-label="Notas e fotos da parede ${LETRAS[i]}">📷${(w.fotos||[]).length?' '+w.fotos.length:''}${w.obs?'✎':''}</button></div>
       <button class="ic" data-a="delW" data-id="${w.id}" aria-label="Apagar parede">✕</button>
-      ${cantoAberto===w.id?cantoHTML(w,i):''}</div>`).join('')}</div>
+      ${cantoAberto===w.id?cantoHTML(w,i):''}${fichaAberta===w.id?fichaHTML(w,i):''}</div>`).join('')}</div>
     ${A.paredes.length===4?`<div class="bar"><h3>Esquadro (diagonais)</h3></div>
     <div class="grid2">
       <div><label>Diagonal canto A → canto C</label>${inp('a','diag1',A.diag1,'dg1')}<span class="meta" id="dif1">${difTxt(A.diag1,c1)}</span></div>
@@ -360,7 +391,13 @@ function telaAmb(){
 }
 
 const fmtAng=v=>{const n=+v||90;return Number.isInteger(n)?String(n):n.toFixed(1).replace('.',',')};
-let cantoAberto=null,cantoTmp={};
+let cantoAberto=null,cantoTmp={},fichaAberta=null;
+function fichaHTML(w,i){const fs=w.fotos||[];return `<div class="canto">
+  <b>Parede ${LETRAS[i]}: notas e fotos</b>
+  <textarea data-o="w" data-id="${w.id}" data-f="obs" rows="3" placeholder="Ex.: parede fora de prumo 8 mm no topo; quadro de luz atrás da porta">${esc(w.obs)}</textarea>
+  <div class="row wrap">${fotoBtn('w',w.id)}<span class="meta">${fs.length?fs.length+' foto(s). Toque para ver ou anotar.':'A foto abre no editor para você marcar as cotas.'}</span></div>
+  ${fs.length?`<div class="thumbs">${fs.map(f=>`<img data-foto="${f}" data-a="verFoto" data-id="${f}" data-dono="w:${w.id}" alt="Foto da parede ${LETRAS[i]}">`).join('')}</div>`:''}
+  <div><button data-a="fichaFechar">Fechar</button></div></div>`}
 function anguloCanto(t){const a=t.a,b=t.b,c=t.c;if(!a||!b||!c)return null;const k=(a*a+b*b-c*c)/(2*a*b);if(k<-1||k>1)return NaN;
   let g=Math.acos(k)*180/Math.PI;if(t.quina)g=360-g;return Math.round(g*10)/10}
 function cantoHTML(w,i){const t=cantoTmp,prox=LETRAS[(i+1)%A.paredes.length],g=anguloCanto(t),k='c:'+w.id+':';
@@ -409,6 +446,7 @@ function telaAjuda(){titulo('Como usar','Medição e exportação');
   <li>Toque numa parede da planta para escolhê-la e use os botões de tipo para marcar tomadas, água, esgoto, janelas e portas.</li>
   <li>Com a trena no chão ou no tripé, use o botão vermelho <b>MEDIR</b> do tablet para disparar sem encostar nela.</li>
   <li>Para conferir um canto, toque no ângulo da parede e use a regra 3-4-5: duas marcas e a diagonal.</li>
+  <li>Depois de tirar uma foto, o editor abre: arraste para criar uma <b>cota</b> e aperte MEDIR ou o botão da trena para a medida entrar nela. Use <b>Seta</b> e <b>Nota</b> para marcar detalhes. Para editar de novo, toque na foto e em <b>Anotar medidas</b>.</li>
   <li>A caixa "Falta" mostra o que ainda não foi medido antes de sair da obra.</li></ol>
   <h3>Levando para os programas</h3>
   <ul><li><b>FreeCAD:</b> exporte a <b>Macro FreeCAD</b> e no FreeCAD use Macro → Macros…, escolha o arquivo e Executar. Também abre o DXF em Arquivo → Importar.</li>
@@ -422,15 +460,105 @@ function telaAjuda(){titulo('Como usar','Medição e exportação');
 /* ================= fotos ================= */
 const urls={};
 async function carregarThumbs(){for(const img of document.querySelectorAll('img[data-foto]')){const id=img.dataset.foto;
-  if(!urls[id]){const r=await dbGet('fotos',id).catch(()=>null);if(!r)continue;urls[id]=URL.createObjectURL(r.blob)}img.src=urls[id]}}
+  if(!urls[id]){const r=await dbGet('fotos',id).catch(()=>null);if(!r)continue;urls[id]=URL.createObjectURL(r.blobAnot||r.blob)}img.src=urls[id]}}
 async function comprimir(file){const bmp=await createImageBitmap(file);const s=Math.min(1,1800/Math.max(bmp.width,bmp.height));
   const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
   return await new Promise(r=>c.toBlob(r,'image/jpeg',.82))}
 let verAtual=null;
 function verFoto(id,dono){verAtual={id,dono};$('#vimg').src=urls[id]||'';$('#viewer').hidden=false}
 $('#vclose').onclick=()=>{$('#viewer').hidden=true};
-$('#vdel').onclick=async()=>{if(!dupla($('#vdel')))return;const {id,dono}=verAtual;const obj=dono==='amb'?A:A.itens.find(i=>i.id===dono);
+$('#vdel').onclick=async()=>{if(!dupla($('#vdel')))return;const {id,dono}=verAtual;const obj=dono==='amb'?A:String(dono).startsWith('w:')?A.paredes.find(w=>w.id===dono.slice(2)):A.itens.find(i=>i.id===dono);
   if(obj)obj.fotos=obj.fotos.filter(f=>f!==id);await dbDel('fotos',id).catch(()=>{});salvar();$('#viewer').hidden=true;$('#vdel').textContent='Apagar foto';render()};
+
+/* ================= editor de fotos (cotas, setas, notas) ================= */
+let ED=null;
+const clone=o=>JSON.parse(JSON.stringify(o));
+async function abrirEditor(id){
+  const rec=await dbGet('fotos',id).catch(()=>null);if(!rec){toast('Foto não encontrada');return}
+  const img=await createImageBitmap(rec.blob);
+  ED={id,rec,img,anot:clone(rec.anot||[]),sel:-1,tool:'cota',cor:ls.get('glm_cor')||'#ffd400',hist:[],drag:null,mudou:false};
+  $('#viewer').hidden=true;$('#editor').hidden=false;edFerr();edAjustar();edBarra();
+}
+function edFerr(){document.querySelectorAll('#edTools button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===ED.tool));
+  document.querySelectorAll('#edCores button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.c===ED.cor))}
+function edAjustar(){if(!ED)return;const w=$('#edWrap'),c=$('#edc'),r=w.getBoundingClientRect();
+  const k=Math.min((r.width-8)/ED.img.width,(r.height-8)/ED.img.height);const cw=Math.max(50,ED.img.width*k),ch=Math.max(50,ED.img.height*k),d=devicePixelRatio||1;
+  c.style.width=cw+'px';c.style.height=ch+'px';c.width=Math.round(cw*d);c.height=Math.round(ch*d);edDesenhar()}
+addEventListener('resize',()=>{if(ED&&!$('#editor').hidden)edAjustar()});
+const edBase=()=>Math.max(ED.img.width,ED.img.height);
+function rotuloCota(a){const v=String(a.v??'').trim();if(!v)return '?';return /^\d+([.,]\d+)?$/.test(v)?v.replace('.',',')+' mm':v}
+function seta(ctx,x,y,ang,t){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-t*Math.cos(ang-.45),y-t*Math.sin(ang-.45));ctx.lineTo(x-t*Math.cos(ang+.45),y-t*Math.sin(ang+.45));ctx.closePath();ctx.fill();ctx.stroke()}
+function edAnot(ctx,a,base,sel){
+  const lw=base/260,fs=base/24,cor=a.cor||'#ffd400';ctx.lineCap='round';ctx.lineJoin='round';
+  if(a.t==='cota'||a.t==='seta'){const ang=Math.atan2(a.y2-a.y1,a.x2-a.x1),t=lw*7;
+    for(const pass of [0,1]){ctx.strokeStyle=pass?cor:'rgba(0,0,0,.75)';ctx.fillStyle=pass?cor:'rgba(0,0,0,.75)';ctx.lineWidth=pass?lw:lw*2.6;
+      ctx.beginPath();ctx.moveTo(a.x1,a.y1);ctx.lineTo(a.x2,a.y2);ctx.stroke();
+      ctx.lineWidth=pass?lw*.6:lw*2;seta(ctx,a.x2,a.y2,ang,t);
+      if(a.t==='cota'){seta(ctx,a.x1,a.y1,ang+Math.PI,t);
+        const px=-Math.sin(ang)*t*1.1,py=Math.cos(ang)*t*1.1;ctx.lineWidth=pass?lw:lw*2.6;
+        for(const [x,y] of [[a.x1,a.y1],[a.x2,a.y2]]){ctx.beginPath();ctx.moveTo(x-px,y-py);ctx.lineTo(x+px,y+py);ctx.stroke()}}}
+    if(a.t==='cota'){const txt=rotuloCota(a),mx=(a.x1+a.x2)/2,my=(a.y1+a.y2)/2;let r=ang;if(r>Math.PI/2)r-=Math.PI;if(r<-Math.PI/2)r+=Math.PI;
+      ctx.save();ctx.translate(mx,my);ctx.rotate(r);ctx.font=`700 ${fs}px system-ui,sans-serif`;const w=ctx.measureText(txt).width+fs*.6,h=fs*1.3;
+      ctx.fillStyle='rgba(0,0,0,.72)';ctx.fillRect(-w/2,-h-lw*2,w,h);ctx.fillStyle=txt==='?'?'#ff8a75':cor;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,0,-h/2-lw*2);ctx.restore()}
+    if(sel){ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=lw*.8;for(const [x,y] of [[a.x1,a.y1],[a.x2,a.y2]]){ctx.beginPath();ctx.arc(x,y,lw*4,0,7);ctx.fill();ctx.stroke()}}
+  }else if(a.t==='texto'){const txt=(a.v||'').trim()||'Nota…';ctx.font=`700 ${fs}px system-ui,sans-serif`;const linhas=txt.split('\n');
+    const w=Math.max(...linhas.map(l=>ctx.measureText(l).width))+fs*.7,h=linhas.length*fs*1.25+fs*.4;
+    ctx.fillStyle='rgba(0,0,0,.72)';ctx.fillRect(a.x,a.y,w,h);ctx.fillStyle=cor;ctx.textBaseline='top';linhas.forEach((l,i)=>ctx.fillText(l,a.x+fs*.35,a.y+fs*.25+i*fs*1.25));
+    a._w=w;a._h=h;if(sel){ctx.strokeStyle='#fff';ctx.lineWidth=lw;ctx.setLineDash([lw*3,lw*2]);ctx.strokeRect(a.x,a.y,w,h);ctx.setLineDash([])}}
+}
+function edDesenhar(){if(!ED)return;const c=$('#edc'),ctx=c.getContext('2d'),k=c.width/ED.img.width;
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,c.width,c.height);ctx.setTransform(k,0,0,k,0,0);ctx.drawImage(ED.img,0,0);
+  ED.anot.forEach((a,i)=>edAnot(ctx,a,edBase(),i===ED.sel))}
+function edPt(e){const r=$('#edc').getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*ED.img.width,y:(e.clientY-r.top)/r.height*ED.img.height}}
+function distSeg(p,a){const dx=a.x2-a.x1,dy=a.y2-a.y1,L=dx*dx+dy*dy||1;let t=((p.x-a.x1)*dx+(p.y-a.y1)*dy)/L;t=Math.max(0,Math.min(1,t));return Math.hypot(p.x-(a.x1+t*dx),p.y-(a.y1+t*dy))}
+function edHit(p){const tol=edBase()/35;
+  for(let i=ED.anot.length-1;i>=0;i--){const a=ED.anot[i];
+    if(a.t==='texto'){if(p.x>=a.x&&p.x<=a.x+(a._w||100)&&p.y>=a.y&&p.y<=a.y+(a._h||40))return {i,part:'all'}}
+    else{if(Math.hypot(p.x-a.x1,p.y-a.y1)<tol)return {i,part:'p1'};if(Math.hypot(p.x-a.x2,p.y-a.y2)<tol)return {i,part:'p2'};if(distSeg(p,a)<tol*.7)return {i,part:'all'}}}
+  return null}
+function edHist(){ED.hist.push(clone(ED.anot));if(ED.hist.length>40)ED.hist.shift();ED.mudou=true}
+const edc=$('#edc');
+edc.addEventListener('pointerdown',e=>{if(!ED)return;e.preventDefault();edc.setPointerCapture(e.pointerId);const p=edPt(e),h=edHit(p);
+  if(h){edHist();ED.sel=h.i;ED.drag={i:h.i,part:h.part,ox:p.x,oy:p.y,orig:clone(ED.anot[h.i])}}
+  else if(ED.tool==='cota'||ED.tool==='seta'){edHist();ED.anot.push({t:ED.tool,x1:p.x,y1:p.y,x2:p.x,y2:p.y,cor:ED.cor,v:''});ED.sel=ED.anot.length-1;ED.drag={i:ED.sel,part:'p2',novo:true}}
+  else if(ED.tool==='texto'){edHist();ED.anot.push({t:'texto',x:p.x,y:p.y,cor:ED.cor,v:''});ED.sel=ED.anot.length-1;edDesenhar();edBarra(true);return}
+  else ED.sel=-1;
+  edDesenhar();edBarra()});
+edc.addEventListener('pointermove',e=>{if(!ED||!ED.drag)return;const p=edPt(e),d=ED.drag,a=ED.anot[d.i],o=d.orig;
+  if(d.part==='p1'){a.x1=p.x;a.y1=p.y}else if(d.part==='p2'){a.x2=p.x;a.y2=p.y}
+  else{const dx=p.x-d.ox,dy=p.y-d.oy;if(a.t==='texto'){a.x=o.x+dx;a.y=o.y+dy}else{a.x1=o.x1+dx;a.y1=o.y1+dy;a.x2=o.x2+dx;a.y2=o.y2+dy}}
+  edDesenhar()});
+edc.addEventListener('pointerup',()=>{if(!ED||!ED.drag)return;const d=ED.drag,a=ED.anot[d.i];ED.drag=null;
+  if(d.novo&&Math.hypot(a.x2-a.x1,a.y2-a.y1)<edBase()/40){ED.anot.splice(d.i,1);ED.hist.pop();ED.sel=-1;toast('Arraste o dedo de uma ponta à outra para desenhar',2200)}
+  else if(d.novo&&a.t==='cota')toast('Cota pronta: aperte MEDIR ou o botão da trena',2200);
+  edDesenhar();edBarra()});
+function edBarra(focar){const b=$('#edBar'),a=ED.anot[ED.sel];
+  if(!a){b.innerHTML=`<span>${{cota:'Arraste sobre a foto de uma ponta à outra para criar a cota. A medida da trena entra nela.',seta:'Arraste para desenhar uma seta apontando o detalhe.',texto:'Toque na foto onde quer escrever a nota.',mover:'Toque numa cota, seta ou nota para mover ou editar.'}[ED.tool]}</span>`;return}
+  const del='<button id="edDel">Apagar</button>';
+  if(a.t==='cota')b.innerHTML=`<label for="edVal" style="margin:0">Medida</label><input id="edVal" class="alvo" inputmode="decimal" autocomplete="off" value="${esc(a.v)}" placeholder="aperte MEDIR"><span>mm (ou escreva um texto)</span>${del}`;
+  else if(a.t==='texto')b.innerHTML=`<label for="edTxt" style="margin:0">Nota</label><input id="edTxt" value="${esc(a.v)}" placeholder="Ex.: cano de água atrás">${del}`;
+  else b.innerHTML=`<span>Seta selecionada</span>${del}`;
+  const v=$('#edVal')||$('#edTxt');if(v){v.addEventListener('focus',()=>edHist(),{once:true});v.addEventListener('input',()=>{a.v=v.value;edDesenhar()});if(focar)setTimeout(()=>v.focus(),50)}
+  const d=$('#edDel');if(d)d.onclick=()=>{edHist();ED.anot.splice(ED.sel,1);ED.sel=-1;edDesenhar();edBarra()}}
+function edReceber(mm){let i=ED.sel;const a=ED.anot[i];
+  if(!a||a.t!=='cota'){i=ED.anot.map((x,j)=>[x,j]).reverse().find(([x])=>x.t==='cota'&&!String(x.v||'').trim())?.[1]??-1}
+  if(i<0){toast(`${mm} mm — desenhe uma cota primeiro`,2500);return}
+  edHist();ED.anot[i].v=String(mm);ED.sel=i;edDesenhar();edBarra();toast('✓ '+mm+' mm na cota',1300)}
+$('#edTools').onclick=e=>{const b=e.target.closest('button');if(!b)return;ED.tool=b.dataset.t;ED.sel=-1;edFerr();edDesenhar();edBarra()};
+$('#edCores').onclick=e=>{const b=e.target.closest('button');if(!b)return;ED.cor=b.dataset.c;ls.set('glm_cor',ED.cor);
+  if(ED.anot[ED.sel]){edHist();ED.anot[ED.sel].cor=ED.cor;edDesenhar()}edFerr()};
+$('#edUndo').onclick=()=>{if(!ED.hist.length){toast('Nada para desfazer');return}ED.anot=ED.hist.pop();ED.sel=-1;edDesenhar();edBarra()};
+function edFechar(){$('#editor').hidden=true;ED=null}
+$('#edCancel').onclick=()=>{if(ED.mudou&&!dupla($('#edCancel')))return;$('#edCancel').textContent='Cancelar';edFechar()};
+$('#edSave').onclick=async()=>{const b=$('#edSave');b.disabled=true;b.textContent='Salvando…';
+  try{const anot=ED.anot.map(a=>{const c=clone(a);delete c._w;delete c._h;return c});let blobAnot=null;
+    if(anot.length){const c=document.createElement('canvas');c.width=ED.img.width;c.height=ED.img.height;const ctx=c.getContext('2d');ctx.drawImage(ED.img,0,0);
+      anot.forEach(a=>edAnot(ctx,a,edBase(),false));blobAnot=await new Promise(r=>c.toBlob(r,'image/jpeg',.86))}
+    const rec={...ED.rec,anot,blobAnot};await dbPut('fotos',rec);
+    if(urls[ED.id]){URL.revokeObjectURL(urls[ED.id]);delete urls[ED.id]}
+    edFechar();render();toast('Foto salva com as anotações')}
+  catch(e){toast('Não consegui salvar: '+e.message,4000)}finally{b.disabled=false;b.textContent='Salvar'}};
+$('#vedit').onclick=()=>{if(verAtual)abrirEditor(verAtual.id)};
 
 /* ================= leitura da trena ================= */
 function marcarAlvo(){document.querySelectorAll('input.alvo').forEach(e=>e.classList.remove('alvo'));
@@ -439,8 +567,9 @@ function marcarAlvo(){document.querySelectorAll('input.alvo').forEach(e=>e.class
   else if(alvoKey.startsWith('i:')){const it=A&&A.itens.find(i=>i.id===alvoKey.split(':')[1]);if(it)selecionarParede(it.parede)}}
 document.addEventListener('focusin',e=>{if(e.target.matches('input.laser')){alvoKey=e.target.dataset.k;marcarAlvo()}});
 function leitura(mm){
-  const u=$('#ult');u.textContent=mm.toLocaleString('pt-BR')+' mm';u.classList.add('flash');setTimeout(()=>u.classList.remove('flash'),700);
+  const u=$('#ult');u.textContent=mm+' mm';u.classList.add('flash');setTimeout(()=>u.classList.remove('flash'),700);
   if(navigator.vibrate)navigator.vibrate(50);
+  if(ED&&!$('#editor').hidden){edReceber(mm);return}
   const el=alvoKey&&document.querySelector(`input.laser[data-k="${CSS.escape(alvoKey)}"]`);
   if(!el){toast(`Leitura ${mm} mm — toque num campo para receber a medida`);return}
   el.value=mm;el.dispatchEvent(new Event('change',{bubbles:true}));
@@ -529,6 +658,9 @@ function dxf(p){
       LN('PAREDES_EXT',P2(w.ax+w.ox*150,w.ay+w.oy*150),P2(w.bx+w.ox*150,w.by+w.oy*150));
       TX('COTAS',(w.ax+w.bx)/2+w.ix*260+ox,(w.ay+w.by)/2+w.iy*260,120,LETRAS[i]+' = '+Math.round(w.L)+(w.ok?'':' (sem medida)'),r);
       if(H)F3('PAREDES_3D',[P2(w.ax,w.ay,0),P2(w.bx,w.by,0),P2(w.bx,w.by,H),P2(w.ax,w.ay,H)]);
+      const pw=a.paredes[i],nfw=(pw.fotos||[]).length;
+      if(pw.obs||nfw){const lin=[...(pw.obs?String(pw.obs).split(/\n/):[]),...(nfw?[`${nfw} foto(s): fotos/${slug(a.nome)}/parede_${LETRAS[i]}_*.jpg`]:[])];
+        lin.forEach((t,k)=>TX('NOTAS',(w.ax+w.bx)/2+w.ix*(560+k*130)+ox,(w.ay+w.by)/2+w.iy*(560+k*130),85,LETRAS[i]+': '+t,r))}
     });
     a.itens.forEach(it=>{const i=a.paredes.findIndex(x=>x.id===it.parede);if(i<0)return;
       const w=G.ws[i],t=TIPOS[it.tipo]||TIPOS.outro,d=it.dist||0,z=it.alt||0,r=rotTxt(w.ux,w.uy);
@@ -544,21 +676,34 @@ function dxf(p){
   g(0,'ENDSEC',0,'EOF');return o.join('\r\n')+'\r\n';
 }
 
-function macro(p){
-  const D={titulo:p.cliente||'Medicao',ambientes:geoProj(p).map(({a,g,ox})=>{const n=a.paredes.length,f=g.fechado;
+async function fotoB64(id,max=1400){const r=await dbGet('fotos',id).catch(()=>null);if(!r)return null;const bmp=await createImageBitmap(r.blobAnot||r.blob);
+  const k=Math.min(1,max/Math.max(bmp.width,bmp.height)),c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);const u=c.toDataURL('image/jpeg',.82);return {b64:u.slice(u.indexOf(',')+1),w:c.width,h:c.height}}
+async function macro(p){
+  const ambs=[];let nf=0;
+  for(const {a,g,ox} of geoProj(p)){const n=a.paredes.length,f=g.fechado,H=a.peDireito||2600;
     const pts=g.pts.map(q=>[+(q.x+ox).toFixed(2),+q.y.toFixed(2)]);if(f)pts[pts.length-1]=pts[0];
-    return {nome:a.nome,H:a.peDireito||2600,fechado:f,pts,
-      ws:g.ws.map((w,i)=>({nome:LETRAS[i],ax:w.ax+ox,ay:w.ay,ux:w.ux,uy:w.uy,L:w.L,esq:w.esq,ang:Math.atan2(w.uy,w.ux)*180/Math.PI,
-        eS:i>0?+a.paredes[i-1].ang<180:(f&&+a.paredes[n-1].ang<180),eE:(i<n-1||f)&&+a.paredes[i].ang<180})),
-      itens:a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return {nome:t.n,tipo:it.tipo,ab:!!t.ab,p:a.paredes.findIndex(w=>w.id===it.parede),dist:it.dist||0,alt:it.alt||0,larg:it.larg||0,h:it.h||0,obs:it.obs||''}})}})};
+    const ws=[];
+    for(let i=0;i<n;i++){const w=g.ws[i],pw=a.paredes[i],fotos=[];
+      const fw=pw.fotos||[];for(let k=0;k<fw.length;k++){const fb=await fotoB64(fw[k]);if(!fb)continue;const lx=Math.min(900,w.L/(fw.length+1)*.9),ly=lx*fb.h/fb.w;
+        fotos.push({...fb,nome:`Foto parede ${LETRAS[i]} ${k+1}`,arq:`parede_${LETRAS[i]}_${k+1}_${++nf}.jpg`,u:w.L*(k+1)/(fw.length+1),z:Math.max(ly/2+50,H*.55),lx,ly})}
+      for(const it of a.itens.filter(x=>x.parede===pw.id))for(let k=0;k<it.fotos.length;k++){const fb=await fotoB64(it.fotos[k],1000);if(!fb)continue;const lx=380,ly=lx*fb.h/fb.w,t=TIPOS[it.tipo]||TIPOS.outro;
+        fotos.push({...fb,nome:`Foto ${t.n} ${k+1}`,arq:`ponto_${LETRAS[i]}_${++nf}.jpg`,u:(it.dist||0)+(t.ab?(it.larg||0)/2:0)+k*(lx+40),z:(it.alt||0)+(t.ab?(it.h||0)+ly/2+80:ly/2+120),lx,ly})}
+      ws.push({nome:LETRAS[i],ax:w.ax+ox,ay:w.ay,ux:w.ux,uy:w.uy,L:w.L,esq:w.esq,ang:Math.atan2(w.uy,w.ux)*180/Math.PI,canto:+pw.ang||90,
+        eS:i>0?+a.paredes[i-1].ang<180:(f&&+a.paredes[n-1].ang<180),eE:(i<n-1||f)&&+a.paredes[i].ang<180,obs:pw.obs||'',fotos})}
+    ambs.push({nome:a.nome,H,fechado:f,pts,obs:a.obs||'',ws,
+      itens:a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return {nome:t.n,tipo:it.tipo,ab:!!t.ab,p:a.paredes.findIndex(w=>w.id===it.parede),dist:it.dist||0,alt:it.alt||0,larg:it.larg||0,h:it.h||0,obs:it.obs||''}})})}
+  const D={titulo:p.cliente||'Medicao',endereco:p.endereco||'',ambientes:ambs};
   const json=JSON.stringify(D).replace(/'''/g,"' ' '");
   return `# -*- coding: utf-8 -*-
 # Macro gerada pelo Medidor GLM em ${new Date().toLocaleString('pt-BR')}
 # FreeCAD: Macro > Macros... > escolha este arquivo > Executar
-import FreeCAD as App, Part, json
+# Cada ambiente vira uma pasta; dentro, uma pasta por parede com a parede 3D, notas, pontos e fotos.
+import FreeCAD as App, Part, json, base64, os, tempfile
 V = App.Vector
 D = json.loads(r'''${json}''')
 ESP = 150.0  # espessura de parede desenhada (mm), para fora da medida interna
+PASTA = tempfile.mkdtemp(prefix='medidor_')
 
 def caixa(w, u0, u1, n0, n1, z0, z1):
     # u: ao longo da parede; n: para fora (positivo) ou para dentro do ambiente (negativo)
@@ -579,16 +724,61 @@ def visual(o, cor, transp=0):
     except Exception:
         pass
 
+def grupo(nome, pai=None):
+    g = doc.addObject('App::DocumentObjectGroup', 'Grupo')
+    g.Label = nome
+    if pai:
+        pai.addObject(g)
+    return g
+
+def nota(texto, nome, pai):
+    try:
+        t = doc.addObject('App::TextDocument', 'Notas')
+        t.Text = texto
+        t.Label = nome
+        pai.addObject(t)
+    except Exception as e:
+        App.Console.PrintWarning('Nota nao criada: %s\\n' % e)
+
+def foto(w, f, pai):
+    caminho = os.path.join(PASTA, f['arq'])
+    with open(caminho, 'wb') as fh:
+        fh.write(base64.b64decode(f['b64']))
+    try:
+        import Image
+    except Exception:
+        pass
+    try:
+        o = doc.addObject('Image::ImagePlane', 'Foto')
+    except Exception as e:
+        App.Console.PrintWarning('Foto nao inserida (%s). Arquivo em %s\\n' % (e, caminho))
+        return
+    o.ImageFile = caminho
+    o.XSize = f['lx']
+    o.YSize = f['ly']
+    o.Label = f['nome']
+    u = V(w['ux'], w['uy'], 0)
+    esq = V(-w['uy'], w['ux'], 0)
+    dentro = esq * (-1 if w['esq'] else 1)
+    centro = V(w['ax'], w['ay'], 0) + u * f['u'] + dentro * 6 + V(0, 0, f['z'])
+    giro = w['ang'] if w['esq'] else w['ang'] + 180
+    o.Placement = App.Placement(centro, App.Rotation(V(0, 0, 1), giro).multiply(App.Rotation(V(1, 0, 0), 90)))
+    pai.addObject(o)
+
 CORES = {'tomada': (0.84, 0.6, 0.0), 'interruptor': (0.79, 0.5, 0.0), 'luz': (0.88, 0.7, 0.0), 'agua': (0.11, 0.56, 0.84),
          'esgoto': (0.48, 0.32, 0.19), 'gas': (0.84, 0.27, 0.11), 'ar': (0.09, 0.65, 0.58)}
 
 doc = App.newDocument('Medicao')
 doc.Label = D['titulo']
 for a in D['ambientes']:
-    grupo = doc.addObject('App::DocumentObjectGroup', 'Ambiente')
-    grupo.Label = a['nome']
+    ga = grupo(a['nome'])
     H = float(a['H'])
+    if a['obs']:
+        nota(a['obs'], 'Notas - ' + a['nome'], ga)
+    gps = []
     for i, w in enumerate(a['ws']):
+        gp = grupo('Parede %s - %d mm' % (w['nome'], round(w['L'])), ga)
+        gps.append(gp)
         if w['L'] <= 0:
             continue
         s = caixa(w, -ESP * w['eS'], w['L'] + ESP * w['eE'], 0, ESP, 0, H)
@@ -597,14 +787,32 @@ for a in D['ambientes']:
                 s = s.cut(caixa(w, it['dist'], it['dist'] + it['larg'], -ESP, 2 * ESP, it['alt'], it['alt'] + it['h']))
         o = doc.addObject('Part::Feature', 'Parede')
         o.Shape = s
-        o.Label = 'Parede %s - %d mm' % (w['nome'], round(w['L']))
-        grupo.addObject(o)
+        o.Label = 'Parede %s' % w['nome']
+        try:
+            o.addProperty('App::PropertyLength', 'Comprimento', 'Medicao')
+            o.Comprimento = w['L']
+            o.addProperty('App::PropertyAngle', 'CantoNoFim', 'Medicao')
+            o.CantoNoFim = w['canto']
+            o.addProperty('App::PropertyString', 'Nota', 'Medicao')
+            o.Nota = w['obs']
+        except Exception:
+            pass
+        gp.addObject(o)
         visual(o, (0.86, 0.84, 0.79), 35)
+        if w['obs']:
+            nota(w['obs'], 'Notas parede ' + w['nome'], gp)
+        if w['fotos']:
+            gf = grupo('Fotos parede ' + w['nome'], gp)
+            for f in w['fotos']:
+                foto(w, f, gf)
     for it in a['itens']:
         if it['p'] < 0:
             continue
         w = a['ws'][it['p']]
-        rot = '%s parede %s - dist %d / h %d' % (it['nome'], w['nome'], round(it['dist']), round(it['alt']))
+        if it['ab']:
+            rot = '%s %dx%d - dist %d / h %d' % (it['nome'], round(it['larg']), round(it['h']), round(it['dist']), round(it['alt']))
+        else:
+            rot = '%s - dist %d / h %d' % (it['nome'], round(it['dist']), round(it['alt']))
         if it['obs']:
             rot += ' - ' + it['obs']
         if it['tipo'] == 'viga' and it['larg'] > 0 and it['h'] > 0:
@@ -619,14 +827,14 @@ for a in D['ambientes']:
             o.Shape = Part.makeSphere(40, c)
             visual(o, CORES.get(it['tipo'], (0.4, 0.4, 0.4)))
         o.Label = rot
-        grupo.addObject(o)
+        gps[it['p']].addObject(o)
     if a['fechado'] and len(a['pts']) > 3:
         try:
             f = Part.Face(Part.makePolygon([V(x, y, 0) for x, y in a['pts']]))
             o = doc.addObject('Part::Feature', 'Piso')
             o.Shape = f
             o.Label = 'Piso ' + a['nome']
-            grupo.addObject(o)
+            ga.addObject(o)
             visual(o, (0.75, 0.82, 0.77), 20)
         except Exception as e:
             App.Console.PrintWarning('Piso nao criado: %s\\n' % e)
@@ -637,20 +845,41 @@ try:
     FreeCADGui.SendMsgToActiveView('ViewFit')
 except Exception:
     pass
+App.Console.PrintMessage('Medicao montada. Salve o arquivo (.FCStd) para guardar as fotos junto do projeto.\\n')
 `;
 }
 
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRCT[(c^u[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
+async function zipar(arqs){const enc=new TextEncoder(),partes=[],central=[];let off=0;
+  for(const f of arqs){let d=f.dados;if(typeof d==='string')d=enc.encode(d);else if(d instanceof Blob)d=new Uint8Array(await d.arrayBuffer());
+    const n=enc.encode(f.nome),c=crc32(d),h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(12,0x21,true);h.setUint32(14,c,true);h.setUint32(18,d.length,true);h.setUint32(22,d.length,true);h.setUint16(26,n.length,true);
+    partes.push(h.buffer,n,d);
+    const cd=new DataView(new ArrayBuffer(46));cd.setUint32(0,0x02014b50,true);cd.setUint16(4,20,true);cd.setUint16(6,20,true);cd.setUint16(8,0x0800,true);cd.setUint16(14,0x21,true);
+    cd.setUint32(16,c,true);cd.setUint32(20,d.length,true);cd.setUint32(24,d.length,true);cd.setUint16(28,n.length,true);cd.setUint32(42,off,true);
+    central.push(cd.buffer,n);off+=30+n.length+d.length}
+  const tam=central.reduce((s,x)=>s+x.byteLength,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,arqs.length,true);e.setUint16(10,arqs.length,true);e.setUint32(12,tam,true);e.setUint32(16,off,true);
+  return new Blob([...partes,...central,e.buffer],{type:'application/zip'})}
+async function pacote(p,base){const arqs=[{nome:base+'.dxf',dados:dxf(p)},{nome:base+'.FCMacro',dados:await macro(p)},{nome:base+'_relatorio.html',dados:await relatorio(p)},{nome:base+'.csv',dados:csv(p)}];
+  for(const a of p.ambientes){const pa='fotos/'+slug(a.nome)+'/';
+    const add=async(ids,pref)=>{for(let k=0;k<ids.length;k++){const r=await dbGet('fotos',ids[k]).catch(()=>null);if(r)arqs.push({nome:pa+pref+'_'+(k+1)+'.jpg',dados:r.blobAnot||r.blob})}};
+    await add(a.fotos,'ambiente');
+    for(let i=0;i<a.paredes.length;i++)await add(a.paredes[i].fotos||[],'parede_'+LETRAS[i]);
+    for(const it of a.itens)await add(it.fotos,'parede_'+letra(it.parede,a)+'_'+slug((TIPOS[it.tipo]||TIPOS.outro).n))}
+  return zipar(arqs)}
 async function relatorio(p){
   const css=`:root{--fg:#1b2621;--laser:#c8321e;--warn:#a86a00;--accent:#0f6b4f;--room:#e4ede7}body{font:15px/1.5 system-ui,sans-serif;color:#1b2621;background:#fff;margin:0;padding:24px max(16px,4vw);max-width:1000px}h1{margin:0 0 4px}h2{margin:32px 0 8px;border-bottom:2px solid #0f6b4f;padding-bottom:4px}table{border-collapse:collapse;width:100%;margin:8px 0;font-variant-numeric:tabular-nums}td,th{border-bottom:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}th{font-size:.8rem;text-transform:uppercase;color:#66716b}.svgplan{max-width:620px;width:100%;border:1px solid #ddd;border-radius:8px;display:block;margin:8px 0}.fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}.fotos figure{margin:0}.fotos img{width:100%;border-radius:6px}.fotos figcaption{font-size:.85rem;color:#66716b}.pend{background:#fff6e6;border:1px solid #e8c98a;border-radius:8px;padding:8px 12px}.wrap{overflow-x:auto}`;
   let h=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Medição ${esc(p.cliente)}</title><style>${css}</style></head><body><h1>Medição — ${esc(p.cliente||'Projeto')}</h1><p>${esc(p.endereco)} · ${new Date().toLocaleDateString('pt-BR')}</p>${p.obs?`<p>${esc(p.obs)}</p>`:''}`;
   for(const a of p.ambientes){const g=geo(a),pe=pendencias(a);
     h+=`<h2>${esc(a.nome)}</h2><p>Pé-direito: <b>${a.peDireito??'—'} mm</b>${a.diag1?` · Diagonal A→C: ${a.diag1} mm`:''}${a.diag2?` · Diagonal B→D: ${a.diag2} mm`:''}</p>${planSVG(a,g,{})}`;
-    h+=`<div class="wrap"><table><tr><th>Parede</th><th>Comprimento (mm)</th><th>Canto no fim</th></tr>${a.paredes.map((w,i)=>`<tr><td>${LETRAS[i]}</td><td>${w.L??'—'}</td><td>${fmtAng(w.ang)}°</td></tr>`).join('')}</table></div>`;
+    h+=`<div class="wrap"><table><tr><th>Parede</th><th>Comprimento (mm)</th><th>Canto no fim</th><th>Notas</th></tr>${a.paredes.map((w,i)=>`<tr><td>${LETRAS[i]}</td><td>${w.L??'—'}</td><td>${fmtAng(w.ang)}°</td><td>${esc(w.obs)}</td></tr>`).join('')}</table></div>`;
     if(a.itens.length)h+=`<div class="wrap"><table><tr><th>Tipo</th><th>Parede</th><th>Dist.</th><th>Altura piso</th><th>Larg. × alt.</th><th>Obs.</th></tr>${a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return `<tr><td>${t.n}</td><td>${letra(it.parede,a)}</td><td>${it.dist??'—'}</td><td>${it.alt??'—'}</td><td>${t.ab?`${it.larg??'—'} × ${it.h??'—'}`:''}</td><td>${esc(it.obs)}</td></tr>`}).join('')}</table></div>`;
     if(a.obs)h+=`<p><b>Obs.:</b> ${esc(a.obs)}</p>`;
     if(pe.length)h+=`<div class="pend"><b>Pendências:</b> ${pe.map(esc).join('; ')}</div>`;
-    const fs=[...a.fotos.map(f=>[f,a.nome]),...a.itens.flatMap(it=>it.fotos.map(f=>[f,(TIPOS[it.tipo]||TIPOS.outro).n+' — parede '+letra(it.parede,a)]))];
-    if(fs.length){h+='<div class="fotos">';for(const [id,cap] of fs){const r=await dbGet('fotos',id).catch(()=>null);if(r)h+=`<figure><img src="${await b64(r.blob)}" alt=""><figcaption>${esc(cap)}</figcaption></figure>`}h+='</div>'}
+    const fs=[...a.fotos.map(f=>[f,a.nome]),...a.paredes.flatMap((w,i)=>(w.fotos||[]).map(f=>[f,'Parede '+LETRAS[i]+(w.obs?' — '+w.obs:'')])),...a.itens.flatMap(it=>it.fotos.map(f=>[f,(TIPOS[it.tipo]||TIPOS.outro).n+' — parede '+letra(it.parede,a)]))];
+    if(fs.length){h+='<div class="fotos">';for(const [id,cap] of fs){const r=await dbGet('fotos',id).catch(()=>null);if(r)h+=`<figure><img src="${await b64(r.blobAnot||r.blob)}" alt=""><figcaption>${esc(cap)}</figcaption></figure>`}h+='</div>'}
   }
   return h+'</body></html>';
 }
@@ -661,10 +890,10 @@ function csv(p){const q=v=>{const s=String(v??'');return /[;"\n]/.test(s)?'"'+s.
     if(a.diag1)L.push([a.nome,'diagonal A-C','','','','','','',a.diag1,'']);if(a.diag2)L.push([a.nome,'diagonal B-D','','','','','','',a.diag2,'']);
     a.itens.forEach(it=>L.push([a.nome,'ponto',letra(it.parede,a),(TIPOS[it.tipo]||TIPOS.outro).n,it.dist,it.alt,it.larg,it.h,'',it.obs]))}
   return '﻿'+L.map(r=>r.map(q).join(';')).join('\r\n')}
-async function backup(p){const fotos={};for(const id of p.ambientes.flatMap(a=>[...a.fotos,...a.itens.flatMap(i=>i.fotos)])){const r=await dbGet('fotos',id).catch(()=>null);if(r)fotos[id]=await b64(r.blob)}
+async function backup(p){const fotos={};for(const id of p.ambientes.flatMap(fotosAmb)){const r=await dbGet('fotos',id).catch(()=>null);if(r)fotos[id]={b:await b64(r.blob),a:r.anot||[],ba:r.blobAnot?await b64(r.blobAnot):null}}
   return JSON.stringify({app:'medidor-glm',versao:1,projeto:p,fotos})}
 async function importar(file){if(!file)return;try{const d=JSON.parse(await file.text());if(d.app!=='medidor-glm')throw new Error('não é um backup do Medidor');
-  for(const [id,u] of Object.entries(d.fotos||{})){await dbPut('fotos',{id,blob:await (await fetch(u)).blob()})}
+  for(const [id,u] of Object.entries(d.fotos||{})){const bl=x=>fetch(x).then(r=>r.blob());if(typeof u==='string')await dbPut('fotos',{id,blob:await bl(u)});else await dbPut('fotos',{id,blob:await bl(u.b),anot:u.a||[],blobAnot:u.ba?await bl(u.ba):null})}
   await dbPut('projetos',d.projeto);projetos=projetos.filter(x=>x.id!==d.projeto.id);projetos.push(d.projeto);P=d.projeto;view='projeto';render();toast('Projeto aberto')}
   catch(e){toast('Não consegui abrir: '+e.message,4000)}}
 async function exportar(f){
@@ -672,7 +901,8 @@ async function exportar(f){
   const base=slug(P.cliente)+'_'+new Date().toISOString().slice(0,10);
   try{
     if(f==='dxf')await entregar(base+'.dxf',new Blob([dxf(P)],{type:'application/octet-stream'}));
-    else if(f==='fc')await entregar(base+'.FCMacro',new Blob([macro(P)],{type:'application/octet-stream'}));
+    else if(f==='fc'){toast('Montando macro com fotos…');await entregar(base+'.FCMacro',new Blob([await macro(P)],{type:'application/octet-stream'}))}
+    else if(f==='zip'){toast('Montando pacote…');await entregar(base+'_pacote.zip',await pacote(P,base))}
     else if(f==='rel'){toast('Montando relatório…');await entregar(base+'_relatorio.html',new Blob([await relatorio(P)],{type:'text/html'}))}
     else if(f==='csv')await entregar(base+'.csv',new Blob([csv(P)],{type:'text/csv'}));
     else if(f==='json'){toast('Montando backup…');await entregar(base+'_backup.json',new Blob([await backup(P)],{type:'application/json'}))}
@@ -695,7 +925,7 @@ document.addEventListener('click',async e=>{
       A={id:uid(),nome:'Ambiente '+(P.ambientes.length+1),peDireito:null,paredes:angs.map(v=>({id:uid(),L:null,ang:v})),itens:[],fotos:[],obs:'',diag1:null,diag2:null};
       P.ambientes.push(A);salvar();selW=null;alvoKey='pd';view='amb';render();scrollTo(0,0);toast('Dê um nome ao ambiente e meça o pé-direito');break;}
     case 'addW':{const w={id:uid(),L:null,ang:90};A.paredes.push(w);salvar();selW=w.id;alvoKey='w:'+w.id;render();break;}
-    case 'delW':if(!dupla(b))return;A.itens=A.itens.filter(i=>i.parede!==id);A.paredes=A.paredes.filter(w=>w.id!==id);salvar();render();break;
+    case 'delW':if(!dupla(b))return;{const w=A.paredes.find(x=>x.id===id);for(const fo of [...(w&&w.fotos||[]),...A.itens.filter(i=>i.parede===id).flatMap(i=>i.fotos)])dbDel('fotos',fo).catch(()=>{});}A.itens=A.itens.filter(i=>i.parede!==id);A.paredes=A.paredes.filter(w=>w.id!==id);salvar();render();break;
     case 'selW':selecionarParede(id);break;
     case 'addI':{if(!A.paredes.length){toast('Adicione uma parede primeiro');return}
       const w=selW||A.paredes[0].id,it={id:uid(),tipo:f,parede:w,dist:null,alt:(f==='porta'||f==='vao')?0:null,larg:null,h:null,obs:'',fotos:[]};
@@ -704,9 +934,9 @@ document.addEventListener('click',async e=>{
       toast(`${TIPOS[f].n} na parede ${letra(w)} — meça a distância`);break;}
     case 'delI':if(!dupla(b))return;{const it=A.itens.find(i=>i.id===id);if(it)for(const fo of it.fotos)dbDel('fotos',fo).catch(()=>{});}
       A.itens=A.itens.filter(i=>i.id!==id);salvar();render();break;
-    case 'delAmb':if(!dupla(b))return;for(const fo of [...A.fotos,...A.itens.flatMap(i=>i.fotos)])dbDel('fotos',fo).catch(()=>{});
+    case 'delAmb':if(!dupla(b))return;for(const fo of fotosAmb(A))dbDel('fotos',fo).catch(()=>{});
       P.ambientes=P.ambientes.filter(x=>x!==A);A=null;salvar();view='projeto';render();break;
-    case 'delProj':if(!dupla(b))return;for(const fo of P.ambientes.flatMap(x=>[...x.fotos,...x.itens.flatMap(i=>i.fotos)]))dbDel('fotos',fo).catch(()=>{});
+    case 'delProj':if(!dupla(b))return;for(const fo of P.ambientes.flatMap(fotosAmb))dbDel('fotos',fo).catch(()=>{});
       await dbDel('projetos',P.id);projetos=projetos.filter(p=>p!==P);P=null;view='lista';render();break;
     case 'exp':exportar(f);break;
     case 'importar':$('#impFile').click();break;
@@ -716,7 +946,9 @@ document.addEventListener('click',async e=>{
     case 'mDiag':if(view!=='diag'&&view!=='ajuda')prevView=view;view='diag';render();break;
     case 'mAjuda':if(view!=='diag'&&view!=='ajuda')prevView=view;view='ajuda';render();break;
     case 'copLog':try{await navigator.clipboard.writeText(logLines.join('\n'));toast('Diagnóstico copiado')}catch(_){toast('Não consegui copiar')}break;
-    case 'canto':cantoAberto=cantoAberto===id?null:id;cantoTmp={};selW=id;alvoKey=cantoAberto?'c:'+id+':a':alvoKey;render();break;
+    case 'ficha':fichaAberta=fichaAberta===id?null:id;cantoAberto=null;selW=id;render();break;
+    case 'fichaFechar':fichaAberta=null;render();break;
+    case 'canto':fichaAberta=null;cantoAberto=cantoAberto===id?null:id;cantoTmp={};selW=id;alvoKey=cantoAberto?'c:'+id+':a':alvoKey;render();break;
     case 'cantoFechar':cantoAberto=null;render();break;
     case 'cantoFixo':{const w=A.paredes.find(x=>x.id===id);if(w){w.ang=+f;salvar()}cantoAberto=null;render();break;}
     case 'cantoUsar':{const g=anguloCanto(cantoTmp),w=A.paredes.find(x=>x.id===id);if(g==null||isNaN(g)){toast('Meça as duas marcas e a diagonal');return}
@@ -729,9 +961,9 @@ document.addEventListener('change',async e=>{
   if(el.id==='prefShare'){prefShare=el.checked;ls.set('glm_share',prefShare?'1':'0');return}
   if(el.id==='impFile'){await importar(el.files[0]);el.value='';return}
   if(el.dataset.fotoO){const files=[...el.files];el.value='';
-    const dono=el.dataset.fotoO==='a'?A:A.itens.find(i=>i.id===el.dataset.id);if(!dono)return;
-    for(const file of files){try{const blob=await comprimir(file),id=uid();await dbPut('fotos',{id,blob});dono.fotos.push(id)}catch(err){toast('Não consegui salvar a foto: '+err.message,4000)}}
-    salvar();render();toast('Foto salva');return}
+    const dono=el.dataset.fotoO==='a'?A:el.dataset.fotoO==='w'?A.paredes.find(w=>w.id===el.dataset.id):A.itens.find(i=>i.id===el.dataset.id);if(!dono)return;if(!dono.fotos)dono.fotos=[];
+    let ultId=null;for(const file of files){try{const blob=await comprimir(file),id=uid();await dbPut('fotos',{id,blob});dono.fotos.push(id);ultId=id}catch(err){toast('Não consegui salvar a foto: '+err.message,4000)}}
+    salvar();render();if(ultId&&files.length===1)abrirEditor(ultId);else toast('Foto salva');return}
   const o=el.dataset.o;if(!o)return;const t=obj(o,el.dataset.id);if(!t)return;
   let v=el.value;if(el.dataset.t==='b')v=el.checked;else if(el.dataset.t==='n'){v=v.trim()===''?null:num(v);if(v!=null)v=Math.round(v)}
   t[el.dataset.f]=v;salvar();
