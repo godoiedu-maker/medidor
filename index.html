@@ -79,6 +79,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,.btn:focus-within{
 @media (max-width:899px){.svgplan{max-height:42vh}}
 .pend{background:color-mix(in srgb,var(--warn) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--warn) 35%,var(--line));border-radius:10px;padding:10px 14px}
 .pend.ok{background:color-mix(in srgb,var(--ok) 10%,var(--panel));border-color:color-mix(in srgb,var(--ok) 35%,var(--line))}
+.pend.bk{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .pend ul{margin:6px 0 0;padding-left:20px}
 .dica{margin:0;color:var(--muted);font-size:.88rem}
 .walls{display:flex;flex-direction:column;gap:8px}
@@ -214,7 +215,7 @@ const dbDel=(s,k)=>tx(s,'readwrite',st=>st.delete(k));
 /* ================= estado ================= */
 let projetos=[],P=null,A=null,view='lista',prevView='lista',selW=null,alvoKey=null;
 let prefShare=ls.get('glm_share')==='1';
-let tS;function salvar(){clearTimeout(tS);const p=P;tS=setTimeout(()=>{if(p)dbPut('projetos',p).catch(e=>toast('Erro ao salvar: '+e.message))},250)}
+let tS;function salvar(){clearTimeout(tS);const p=P;if(p)p.alterado=Date.now();tS=setTimeout(()=>{if(p)dbPut('projetos',p).catch(e=>toast('Erro ao salvar: '+e.message))},250)}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&P){clearTimeout(tS);dbPut('projetos',P).catch(()=>{})}});
 function guardarNav(){ls.set('glm_nav',JSON.stringify({view,p:P&&P.id,a:A&&A.id}))}
 const letra=(id,a=A)=>{const i=a?a.paredes.findIndex(w=>w.id===id):-1;return i<0?'?':LETRAS[i]};
@@ -299,7 +300,7 @@ function telaLista(){
   return `<section class="stack">
   <div class="bar"><h2>Projetos</h2><button class="primary" data-a="novoProj">+ Novo projeto</button></div>
   ${ps.length?`<div class="cards">${ps.map(p=>{const n=p.ambientes.reduce((s,a)=>s+pendencias(a).length,0);
-    return `<button class="card" data-a="abrirProj" data-id="${p.id}"><b>${esc(p.cliente||'Sem nome')}</b><span class="meta">${esc(p.endereco||'')}</span><span class="meta">${p.ambientes.length} ambiente(s) · ${new Date(p.criado).toLocaleDateString('pt-BR')}</span>${!p.ambientes.length?'<span class="pill warn">sem ambientes</span>':n?`<span class="pill warn">${n} pendência(s)</span>`:'<span class="pill ok">completo</span>'}</button>`}).join('')}</div>`
+    return `<button class="card" data-a="abrirProj" data-id="${p.id}"><b>${esc(p.cliente||'Sem nome')}</b><span class="meta">${esc(p.endereco||'')}</span><span class="meta">${p.ambientes.length} ambiente(s) · ${new Date(p.criado).toLocaleDateString('pt-BR')}</span>${!p.ambientes.length?'<span class="pill warn">sem ambientes</span>':n?`<span class="pill warn">${n} pendência(s)</span>`:'<span class="pill ok">completo</span>'}${pendBk(p)?'<span class="pill warn">☁ backup pendente</span>':''}</button>`}).join('')}</div>`
   :`<div class="vazio"><p><b>Nenhum projeto ainda.</b></p><p>Crie um projeto para o cliente, adicione os ambientes e meça cada parede com a trena. Tudo fica salvo neste aparelho, mesmo sem internet.</p></div>`}
   <div><button data-a="importar">Abrir backup (.json)</button></div>
   </section>`;
@@ -308,6 +309,7 @@ function telaLista(){
 function telaProjeto(){
   titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
   return `<section class="stack">
+  ${bkHTML(P)}
   <div class="grid2">
     <div><label for="pc">Cliente</label><input id="pc" data-o="p" data-f="cliente" value="${esc(P.cliente)}" placeholder="Nome do cliente"></div>
     <div><label for="pe">Endereço / obra</label><input id="pe" data-o="p" data-f="endereco" value="${esc(P.endereco)}" placeholder="Rua, apto, bairro"></div>
@@ -372,6 +374,7 @@ function telaAmb(){
   <div class="col-plan">
     <div class="plan" id="plan">${planSVG(A,g,{sel:selW})}</div>
     <div id="pend">${pendHTML(pendencias(A))}</div>
+    ${bkHTML(P)}
   </div>
   <div class="stack">
     <div class="grid2">
@@ -988,6 +991,27 @@ async function exportar(f){
   if(n&&f!=='json')setTimeout(()=>toast(`Atenção: ${n} medida(s) pendente(s). Paredes sem medida saem com 1000 mm.`,4500),3600);
 }
 
+/* ================= backup no OneDrive (um toque) ================= */
+const pendBk=p=>p&&p.ambientes.length&&(p.alterado||p.criado||0)>(p.salvoEm||0);
+function bkHTML(p){if(!p||!p.ambientes.length)return '';
+  const quando=p.salvoEm?new Date(p.salvoEm).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):null;
+  return pendBk(p)?`<div class="pend bk"><div><b>☁ Backup pendente</b><br><span class="meta">${quando?'Último backup: '+quando+'. Houve mudanças depois.':'Este projeto ainda não tem backup.'}</span></div><button class="primary" data-a="bkOne">Salvar no OneDrive</button></div>`
+    :`<div class="pend ok bk"><div><b>☁ Backup em dia</b><br><span class="meta">Salvo em ${quando}</span></div><button data-a="bkOne">Salvar de novo</button></div>`}
+async function backupOneDrive(btn){
+  const p=P;if(!p)return;const o=btn.textContent;btn.disabled=true;btn.textContent='Preparando…';
+  try{const txt=await backup(p),nome=slug(p.cliente)+'_medicao.json';
+    let f=new File([txt],nome,{type:'application/json'});
+    if(navigator.canShare&&!navigator.canShare({files:[f]}))f=new File([txt],nome,{type:'text/plain'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){
+      try{await navigator.share({files:[f],title:'Medição '+(p.cliente||'')})}
+      catch(e){if(e.name==='AbortError'){btn.disabled=false;btn.textContent=o;return}throw e}
+      toast('Enviado. No OneDrive, salve na pasta Medições.',3500)}
+    else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=nome;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000);toast('Salvo em Downloads: '+nome,3500)}
+    p.salvoEm=Date.now();await dbPut('projetos',p);render()}
+  catch(e){toast('Não consegui fazer o backup: '+e.message,4500);btn.disabled=false;btn.textContent=o}}
+// ao sair de um ambiente com mudanças, lembra do backup
+let avisouBk=0;function lembrarBk(){if(pendBk(P)&&Date.now()-avisouBk>10*60000){avisouBk=Date.now();setTimeout(()=>toast('☁ Lembrete: faça o backup no OneDrive (botão no topo do projeto)',4000),300)}}
+
 /* ================= eventos ================= */
 function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id)}
 document.addEventListener('click',async e=>{
@@ -1016,6 +1040,7 @@ document.addEventListener('click',async e=>{
     case 'delProj':if(!dupla(b))return;for(const fo of P.ambientes.flatMap(fotosAmb))dbDel('fotos',fo).catch(()=>{});
       await dbDel('projetos',P.id);projetos=projetos.filter(p=>p!==P);P=null;view='lista';render();break;
     case 'exp':exportar(f);break;
+    case 'bkOne':backupOneDrive(b);break;
     case 'importar':$('#impFile').click();break;
     case 'verFoto':verFoto(id,b.dataset.dono);break;
     case 'mTodos':conectar(true);break;
@@ -1046,7 +1071,7 @@ document.addEventListener('change',async e=>{
   t[el.dataset.f]=v;salvar();
   if(el.dataset.full)render();else if(view==='amb')parcial();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
 });
-$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto'}else if(view==='projeto'){P=null;view='lista'}else if(view==='diag'||view==='ajuda'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
+$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='diag'||view==='ajuda'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
 $('#fabMedir').onclick=medirRemoto;$('#fabLaser').onclick=alternarLaser;
 $('#menuBtn').onclick=()=>{$('#menu').hidden=!$('#menu').hidden};
 
