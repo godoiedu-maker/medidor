@@ -1053,20 +1053,30 @@ async function exportar(f){
 const pendBk=p=>p&&p.ambientes.length&&(p.alterado||p.criado||0)>(p.salvoEm||0);
 function bkHTML(p){if(!p||!p.ambientes.length)return '';
   const quando=p.salvoEm?new Date(p.salvoEm).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):null;
+  const pronto=bkPronto&&bkPronto.pid===p.id&&bkPronto.ver===(p.alterado||0);
+  if(pronto)return `<div class="pend bk"><div><b>☁ Backup pronto</b><br><span class="meta">Toque para abrir o Compartilhar e escolher o OneDrive.</span></div><button class="primary" data-a="bkOne">Enviar para o OneDrive</button></div>`;
   return pendBk(p)?`<div class="pend bk"><div><b>☁ Backup pendente</b><br><span class="meta">${quando?'Último backup: '+quando+'. Houve mudanças depois.':'Este projeto ainda não tem backup.'}</span></div><button class="primary" data-a="bkOne">Salvar no OneDrive</button></div>`
     :`<div class="pend ok bk"><div><b>☁ Backup em dia</b><br><span class="meta">Salvo em ${quando}</span></div><button data-a="bkOne">Salvar de novo</button></div>`}
+let bkPronto=null;
 async function backupOneDrive(btn){
-  const p=P;if(!p)return;const o=btn.textContent;btn.disabled=true;btn.textContent='Preparando…';
+  const p=P;if(!p)return;
+  // 2º toque: arquivo já pronto -> compartilha na hora (o Android exige que seja logo após o toque)
+  if(bkPronto&&bkPronto.pid===p.id&&bkPronto.ver===(p.alterado||0)){
+    const f=bkPronto.file;
+    try{
+      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Medição '+(p.cliente||'')});toast('Enviado. No OneDrive, salve na pasta Medições.',3500)}
+      else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000);toast('Salvo em Downloads: '+f.name,3500)}
+      p.salvoEm=Date.now();bkPronto=null;await dbPut('projetos',p);render()
+    }catch(e){if(e.name!=='AbortError')toast('Não consegui abrir o Compartilhar: '+e.message,4500)}
+    return}
+  // 1º toque: monta o arquivo
+  btn.disabled=true;btn.textContent='Preparando…';
   try{const txt=await backup(p),nome=slug(p.cliente)+'_medicao.json';
     let f=new File([txt],nome,{type:'application/json'});
     if(navigator.canShare&&!navigator.canShare({files:[f]}))f=new File([txt],nome,{type:'text/plain'});
-    if(navigator.canShare&&navigator.canShare({files:[f]})){
-      try{await navigator.share({files:[f],title:'Medição '+(p.cliente||'')})}
-      catch(e){if(e.name==='AbortError'){btn.disabled=false;btn.textContent=o;return}throw e}
-      toast('Enviado. No OneDrive, salve na pasta Medições.',3500)}
-    else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=nome;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000);toast('Salvo em Downloads: '+nome,3500)}
-    p.salvoEm=Date.now();await dbPut('projetos',p);render()}
-  catch(e){toast('Não consegui fazer o backup: '+e.message,4500);btn.disabled=false;btn.textContent=o}}
+    bkPronto={pid:p.id,ver:p.alterado||0,file:f};
+    render();toast('Backup pronto: toque em "Enviar para o OneDrive"',3500)}
+  catch(e){toast('Não consegui montar o backup: '+e.message,4500);btn.disabled=false;btn.textContent='Salvar no OneDrive'}}
 // ao sair de um ambiente com mudanças, lembra do backup
 let avisouBk=0;function lembrarBk(){if(pendBk(P)&&Date.now()-avisouBk>10*60000){avisouBk=Date.now();setTimeout(()=>toast('☁ Lembrete: faça o backup no OneDrive (botão no topo do projeto)',4000),300)}}
 
