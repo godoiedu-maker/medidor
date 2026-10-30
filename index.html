@@ -783,6 +783,7 @@ async function macro(p){
       ws.push({nome:LETRAS[i],ax:w.ax+ox,ay:w.ay,ux:w.ux,uy:w.uy,L:w.L,esq:w.esq,ang:Math.atan2(w.uy,w.ux)*180/Math.PI,canto:+pw.ang||90,
         eS:i>0?+a.paredes[i-1].ang<180:(f&&+a.paredes[n-1].ang<180),eE:(i<n-1||f)&&+a.paredes[i].ang<180,obs:pw.obs||'',fotos})}
     ambs.push({nome:a.nome,H,fechado:f,pts,obs:a.obs||'',ws,
+      moveis:(a.moveis||[]).map(m=>({...m,p:a.paredes.findIndex(w=>w.id===m.parede)})),
       itens:a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return {nome:t.n,tipo:it.tipo,ab:!!t.ab,p:a.paredes.findIndex(w=>w.id===it.parede),dist:it.dist||0,alt:it.alt||0,larg:it.larg||0,h:it.h||0,obs:it.obs||'',dob:it.dob||'e',abre:it.abre||'dentro',acab:it.acab||'',modelo:it.modelo||'',mods:it.mods||'',v220:!!it.v220}})})}
   const D={titulo:p.cliente||'Medicao',endereco:p.endereco||'',ambientes:ambs};
   const json=JSON.stringify(D).replace(/'''/g,"' ' '");
