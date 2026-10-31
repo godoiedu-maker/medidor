@@ -108,6 +108,8 @@ details summary{cursor:pointer;font-weight:600;padding:4px 0}
 .chips button{min-height:38px;min-width:44px;padding:4px 12px}
 #cv3d{width:100%;height:min(60vh,620px);display:block;touch-action:none;cursor:grab;border-radius:8px}
 @media (max-width:899px){#cv3d{height:46vh}}
+.metr{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.metr summary{font-weight:700}
 .tela-desenho{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
 #pad{width:100%;height:min(62vh,640px);display:block;touch-action:none;cursor:crosshair}
 .num{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 6px;border-radius:14px;color:#fff;font-weight:700;font-size:.85rem;flex:none}
@@ -368,6 +370,7 @@ function telaProjeto(){
   <div class="bar"><h2>Ambientes</h2></div>
   ${P.ambientes.length?`<div class="cards">${P.ambientes.map(a=>{const pe=pendencias(a);return `<button class="card" data-a="abrirAmb" data-id="${a.id}"><b>${esc(a.nome)}</b><span class="meta">${a.paredes.length} paredes · ${a.itens.length} pontos · ${a.fotos.length} fotos${a.peDireito?' · PD '+a.peDireito:''}</span>${pe.length?`<span class="pill warn">${pe.length} pendência(s)</span>`:'<span class="pill ok">completo</span>'}</button>`}).join('')}</div>`:'<p class="meta">Toque em <b>+ Novo ambiente</b> e escolha um modelo ou desenhe o formato com o dedo.</p>'}
   <div><button class="primary" data-a="novoAmbTela">+ Novo ambiente</button></div>
+  ${metragemProjHTML(P)}
   <div class="bar"><h2>Exportar</h2></div>
   <div class="exp">
     <button data-a="abrirOrc" style="border-color:var(--ok)"><b>💰 Orçamento, cores e corte</b><span>Preço ao cliente, chapas, ferragens, Excel e lista Leo</span></button>
@@ -395,6 +398,7 @@ function itemHTML(it){
     <div><label>${t.ab?'Dist. até a borda':'Dist. até o centro'}</label>${inp('i','dist',it.dist,k+'dist',it.id)}</div>
     <div><label>${t.ab?(it.tipo==='viga'?'Altura até a base':'Altura do piso'):'Altura do piso'}</label>${inp('i','alt',it.alt,k+'alt',it.id)}</div>
     ${t.ab?`<div><label>Largura</label>${inp('i','larg',it.larg,k+'larg',it.id)}</div><div><label>Altura</label>${inp('i','h',it.h,k+'h',it.id)}</div>`:''}
+    ${sobraHTML('i',it)}
   </div>
   ${it.tipo==='porta'?`<div class="ig">
     <div><label>Dobradiça</label><select data-o="i" data-id="${it.id}" data-f="dob"><option value="e"${it.dob!=='d'?' selected':''}>Lado esquerdo</option><option value="d"${it.dob==='d'?' selected':''}>Lado direito</option></select></div>
@@ -425,6 +429,7 @@ function movelHTML(m,idx){const k='m:'+m.id+':',c=corMovel(m);
     <div><label>Altura</label>${inp('m','alt',m.alt,k+'alt',m.id)}</div>
     <div><label>Profundidade</label>${inp('m','prof',m.prof,k+'prof',m.id)}</div>
     <div><label>Altura do chão</label>${inp('m','z',m.z,k+'z',m.id)}</div>
+    ${sobraHTML('m',m)}
   </div>
   <div class="ig">
     <div><label>Portas</label><select data-o="m" data-id="${m.id}" data-f="portas" data-t="n">${[0,1,2].map(v=>`<option${+m.portas===v?' selected':''}>${v}</option>`).join('')}</select></div>
@@ -447,6 +452,7 @@ function telaAmb(){
   <div class="col-plan">
     ${abasVista()}<div class="plan" id="plan">${vistaHTML(g)}</div>
     <div id="pend">${pendHTML(pendencias(A))}</div>
+    <div id="metr">${metragemHTML(A)}</div>
     ${bkHTML(P)}
   </div>
   <div class="stack">
@@ -512,7 +518,7 @@ function cantoHTML(w,i){const t=cantoTmp,prox=LETRAS[(i+1)%A.paredes.length],g=a
   </div></div>`}
 function parcial(){
   if(view!=='amb')return;const g=geo(A);
-  atualizarVista();$('#pend').innerHTML=pendHTML(pendencias(A));
+  atualizarVista();$('#pend').innerHTML=pendHTML(pendencias(A));{const d=$('#metr details');$('#metr').innerHTML=metragemHTML(A);if(d&&d.open)$('#metr details').open=true}atualizarSobras();
   if($('#dif1')){const [c1,c2]=A.paredes.every(w=>w.L)?diagCalc(g):[null,null];$('#dif1').textContent=difTxt(A.diag1,c1);$('#dif2').textContent=difTxt(A.diag2,c2)}
   if($('#cres')){const g=anguloCanto(cantoTmp),t=cantoTmp;$('#cres').textContent=g==null?'— °':isNaN(g)?'medidas não fecham um triângulo':fmtAng(g)+'°';
     $('#cdif').textContent=g&&!isNaN(g)?(Math.abs(g-(t.quina?270:90))<=0.3?'no esquadro':`${fmtAng(Math.abs(Math.round((g-(t.quina?270:90))*10)/10))}° fora do esquadro`):''}
@@ -666,7 +672,7 @@ function leitura(mm){
   const el=alvoKey&&document.querySelector(`input.laser[data-k="${CSS.escape(alvoKey)}"]`);
   if(!el){toast(`Leitura ${mm} mm — toque num campo para receber a medida`);return}
   el.value=mm;el.dispatchEvent(new Event('change',{bubbles:true}));
-  const list=[...document.querySelectorAll('input.laser')],i=list.findIndex(x=>x.dataset.k===alvoKey),prox=list[i+1];
+  const list=[...document.querySelectorAll('input.laser:not(.sobra)')],i=list.findIndex(x=>x.dataset.k===alvoKey),prox=i<0?null:list[i+1];
   alvoKey=prox?prox.dataset.k:null;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
   marcarAlvo();if(prox)prox.scrollIntoView({block:'center',behavior:'smooth'});toast('✓ '+mm+' mm',1200);
 }
@@ -1632,6 +1638,40 @@ function camPreset(f){if(f==='iso'){cam.persp=false;cam.pitch=35.26;cam.yaw=-45;
     // olhar a parede selecionada de dentro do ambiente: direção da vista = -normal interna
     const dx=-w.ix,dy=-w.iy;cam.yaw=Math.atan2(dx,dy)*180/Math.PI;cam.pitch=12;cam.persp=true;cam.zoom=1.1}}
 
+/* ================= METRAGEM (pintura e piso) ================= */
+const m2=v=>(v/1e6).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const ml=v=>(v/1000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function metragem(a){const g=geo(a),H=PE(a),par=[];let tot=0,totB=0,desc=0,portas=0;
+  a.paredes.forEach((w,i)=>{const L=LW(w),bruta=L*H;let d=0;
+    for(const it of a.itens.filter(x=>x.parede===w.id&&['porta','janela','vao'].includes(x.tipo))){const o=aberturaDim(it,H),u0=Math.max(0,o.u0),u1=Math.min(L,o.u1);
+      if(u1>u0&&o.z1>o.z0)d+=(u1-u0)*(o.z1-o.z0);if(it.tipo!=='janela'&&o.z0<50)portas+=Math.max(0,u1-u0)}
+    par.push({l:LETRAS[i],L,bruta,desc:d,liq:Math.max(0,bruta-d),ok:!!w.L});tot+=Math.max(0,bruta-d);totB+=bruta;desc+=d});
+  const fechado=g.ws.length>=3&&g.fech<20;let piso=null;
+  if(fechado){let ar=0;const p=g.pts;for(let i=0;i<p.length-1;i++)ar+=p[i].x*p[i+1].y-p[i+1].x*p[i].y;piso=Math.abs(ar)/2}
+  const per=a.paredes.reduce((s,w)=>s+LW(w),0);
+  return {par,tot,totB,desc,piso,per,rodape:Math.max(0,per-portas),exato:a.paredes.every(w=>w.L)&&!!a.peDireito,H}}
+function metragemHTML(a){const r=metragem(a);
+  return `<details class="metr"${ls.get('glm_m2')==='1'?' open':''}><summary>📐 Metragem: paredes ${m2(r.tot)} m²${r.piso!=null?` · piso ${m2(r.piso)} m²`:''}${r.exato?'':' <span class="pill warn">estimada</span>'}</summary>
+  ${r.exato?'':`<p class="dica">Ainda falta medir ${a.peDireito?'':'o pé-direito'}${!a.peDireito&&!a.paredes.every(w=>w.L)?' e ':''}${a.paredes.every(w=>w.L)?'':'paredes (marcadas com *)'}. Os números mudam conforme você mede.</p>`}
+  <div class="wrap"><table class="tb"><tr><th>Parede</th><th>Compr. (m)</th><th>Altura (m)</th><th>Bruta (m²)</th><th>− Vãos (m²)</th><th>Pintura (m²)</th></tr>
+  ${r.par.map(p=>`<tr><td><b>${p.l}</b>${p.ok?'':' *'}</td><td>${ml(p.L)}</td><td>${ml(r.H)}</td><td>${m2(p.bruta)}</td><td>${p.desc?m2(p.desc):'—'}</td><td><b>${m2(p.liq)}</b></td></tr>`).join('')}
+  <tr><td><b>Total</b></td><td>${ml(r.per)}</td><td></td><td>${m2(r.totB)}</td><td>${r.desc?m2(r.desc):'—'}</td><td><b>${m2(r.tot)}</b></td></tr></table></div>
+  <div class="grid2" style="margin-top:8px">
+    <div><span class="meta">Piso (e teto)</span><br><b>${r.piso!=null?m2(r.piso)+' m²':'— a planta precisa fechar'}</b></div>
+    <div><span class="meta">Rodapé (perímetro sem portas)</span><br><b>${ml(r.rodape)} m</b></div>
+  </div>
+  <p class="dica">Pintura = comprimento × pé-direito, descontando portas, janelas e vãos. Para comprar material, some a perda de costume.</p></details>`}
+function metragemProjHTML(p){if(!p.ambientes.length)return '';let tp=0,tpi=0;
+  const L=p.ambientes.map(a=>{const r=metragem(a);tp+=r.tot;tpi+=r.piso||0;return `<tr><td>${esc(a.nome)}${r.exato?'':' *'}</td><td>${m2(r.tot)}</td><td>${r.piso!=null?m2(r.piso):'—'}</td><td>${ml(r.rodape)}</td></tr>`});
+  return `<details class="metr"><summary>📐 Metragem da obra: paredes ${m2(tp)} m² · piso ${m2(tpi)} m²</summary><div class="wrap"><table class="tb"><tr><th>Ambiente</th><th>Pintura (m²)</th><th>Piso (m²)</th><th>Rodapé (m)</th></tr>${L.join('')}
+  <tr><td><b>Total</b></td><td><b>${m2(tp)}</b></td><td><b>${m2(tpi)}</b></td><td></td></tr></table></div><p class="dica">* ambiente com medida faltando (valor estimado).</p></details>`}
+// sobra até o fim da parede (para saber onde começa o próximo móvel)
+function sobraDe(o,obj){const w=A.paredes.find(x=>x.id===obj.parede);if(!w||!w.L||obj.dist==null||obj.dist==='')return '';
+  const t=o==='i'?TIPOS[obj.tipo]||TIPOS.outro:null,larg=o==='m'||t.ab?(+obj.larg||0):0;return Math.round(w.L-(+obj.dist)-larg)}
+function sobraHTML(o,obj){const w=A.paredes.find(x=>x.id===obj.parede);
+  return `<div><label>Sobra até o fim${w&&w.L?'':' (meça a parede)'}</label><input class="laser sobra" inputmode="decimal" autocomplete="off" data-sobra="${o}" data-id="${obj.id}" data-k="${o}:${obj.id}:sobra" value="${sobraDe(o,obj)}" placeholder="mm"></div>`}
+function atualizarSobras(){document.querySelectorAll('input[data-sobra]').forEach(el=>{if(el===document.activeElement)return;const obj=el.dataset.sobra==='i'?A.itens.find(x=>x.id===el.dataset.id):(A.moveis||[]).find(x=>x.id===el.dataset.id);if(obj)el.value=sobraDe(el.dataset.sobra,obj)})}
+
 /* ================= eventos ================= */
 function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id)}
 document.addEventListener('click',async e=>{
@@ -1705,6 +1745,12 @@ document.addEventListener('change',async e=>{
   const el=e.target;
   if(el.id==='prefShare'){prefShare=el.checked;ls.set('glm_share',prefShare?'1':'0');return}
   if(el.id==='impFile'){await importar(el.files[0]);el.value='';return}
+  if(el.dataset.sobra){const o=el.dataset.sobra,obj=o==='i'?A.itens.find(x=>x.id===el.dataset.id):(A.moveis||[]).find(x=>x.id===el.dataset.id);if(!obj)return;
+    const w=A.paredes.find(x=>x.id===obj.parede),v=el.value.trim()===''?null:Math.round(num(el.value));
+    if(!w||!w.L){toast('Meça a parede primeiro para usar a sobra');el.value='';return}
+    if(v!=null){const t=o==='i'?TIPOS[obj.tipo]||TIPOS.outro:null,larg=o==='m'||t.ab?(+obj.larg||0):0;
+      if((o==='m'||t.ab)&&!larg){toast('Preencha a largura antes');return}
+      obj.dist=Math.round(w.L-v-larg);salvar();const di=document.querySelector(`input[data-o="${o}"][data-id="${obj.id}"][data-f="dist"]`);if(di)di.value=obj.dist;parcial();toast('Distância do início: '+obj.dist+' mm')}return}
   if(el.id==='precoFile'){await importarPrecos(el.files[0]);el.value='';return}
   if(el.dataset.o==='orc'){if(!P.orc)P.orc={params:{},extras:[]};const v=el.value.trim();if(v==='')delete P.orc.params[el.dataset.f];else P.orc.params[el.dataset.f]=num(v);salvar();render();return}
   if(el.dataset.o==='mcor'){const m=P.ambientes.flatMap(a=>a.moveis||[]).find(x=>x.id===el.dataset.id);if(m){m[el.dataset.f]=el.value;salvar();render()}return}
@@ -1716,10 +1762,12 @@ document.addEventListener('change',async e=>{
   let v=el.value;if(el.dataset.t==='b')v=el.checked;else if(el.dataset.t==='n'){v=v.trim()===''?null:num(v);if(v!=null)v=Math.round(v)}
   t[el.dataset.f]=v;salvar();
   if(o==='m'&&el.dataset.f==='k'&&MOVEIS[v]){const pr=MOVEIS[v];Object.assign(t,{tipo:pr.tipo,larg:pr.larg,alt:pr.alt,prof:pr.prof,z:pr.z,portas:pr.portas,gavetas:pr.gavetas,prats:pr.prats,base:pr.base});salvar()}
-  if(el.dataset.full)render();else if(view==='amb')parcial();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
+  if(el.dataset.full)render();else if(view==='amb')parcial();
+  if(view==='amb'&&o==='w')atualizarSobras();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
 });
 $('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='orc'||view==='modelo'){view='projeto'}else if(view==='desenho'){desenho=null;view='modelo'}else if(view==='diag'||view==='ajuda'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
 $('#fabMedir').onclick=medirRemoto;$('#fabLaser').onclick=alternarLaser;
+document.addEventListener('toggle',e=>{if(e.target.classList&&e.target.classList.contains('metr')&&e.target.closest('#metr'))ls.set('glm_m2',e.target.open?'1':'0')},true);
 $('#menuBtn').onclick=()=>{$('#menu').hidden=!$('#menu').hidden};
 
 /* ================= início ================= */
