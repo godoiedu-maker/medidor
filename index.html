@@ -1280,13 +1280,13 @@ function calcularOrcamento(p){
   if(!PRECOS)throw new Error('Carregue os preços primeiro (menu ⋮ > Carregar preços)');
   const o=p.orc||{},prm=Object.assign({},PRECOS.params,o.params||{}),itens=[],todas=[];
   for(const a of p.ambientes)for(const m of (a.moveis||[])){if(!m.larg||!m.alt||!m.prof)continue;
-    const r=pecasMovel(m),f=ferragensMovel(m,r),it={amb:a.nome,m,desc:nomeMovel(m),pecas:r.pecas,aprox:r.aprox,ferr:f,area:{},fita:{}};
-    for(const pc of r.pecas){it.area[pc.mat]=(it.area[pc.mat]||0)+pc.c*pc.l/1e6;const fm=((pc.fita[0]+pc.fita[1])*pc.c+(pc.fita[2]+pc.fita[3])*pc.l)/1000;if(fm)it.fita[pc.mat]=(it.fita[pc.mat]||0)+fm;todas.push(pc)}
+    const r=pecasMovel(m),f=ferragensMovel(m,r),it={amb:a.nome,m,desc:nomeMovel(m),pecas:r.pecas.flatMap(emendar),aprox:r.aprox,ferr:f,area:{},fita:{}};
+    for(const pc of it.pecas){it.area[pc.mat]=(it.area[pc.mat]||0)+pc.c*pc.l/1e6;const fm=((pc.fita[0]+pc.fita[1])*pc.c+(pc.fita[2]+pc.fita[3])*pc.l)/1000;if(fm)it.fita[pc.mat]=(it.fita[pc.mat]||0)+fm;todas.push(pc)}
     itens.push(it)}
   for(const a of p.ambientes)for(const v of (a.avulsas||[])){const r=pecasAvulsa(v);if(!r.pecas.length)continue;
     const mv={...v,larg:v.k==='tampo'?v.comp:v.larg,alt:v.k==='tampo'?(v.eng!==false?2*(+v.esp||15):+v.esp||15):v.alt,prof:v.k==='tampo'?v.prof:v.esp};
-    const it={amb:a.nome,m:mv,av:1,desc:nomeAvulsa(v),pecas:r.pecas,aprox:false,ferr:r.ferr,area:{},fita:{}};
-    for(const pc of r.pecas){it.area[pc.mat]=(it.area[pc.mat]||0)+pc.c*pc.l/1e6;const fm=((pc.fita[0]+pc.fita[1])*pc.c+(pc.fita[2]+pc.fita[3])*pc.l)/1000;if(fm)it.fita[pc.mat]=(it.fita[pc.mat]||0)+fm;todas.push(pc)}
+    const it={amb:a.nome,m:mv,av:1,desc:nomeAvulsa(v),pecas:r.pecas.flatMap(emendar),aprox:false,ferr:r.ferr,area:{},fita:{}};
+    for(const pc of it.pecas){it.area[pc.mat]=(it.area[pc.mat]||0)+pc.c*pc.l/1e6;const fm=((pc.fita[0]+pc.fita[1])*pc.c+(pc.fita[2]+pc.fita[3])*pc.l)/1000;if(fm)it.fita[pc.mat]=(it.fita[pc.mat]||0)+fm;todas.push(pc)}
     itens.push(it)}
   if(!itens.length)throw new Error('Nenhum móvel com largura, altura e profundidade');
   const [SW,SH,REF,K]=PRECOS.chapa||[2740,1840,10,4],mats={};let cortes=0;const porMat={};
@@ -1305,7 +1305,8 @@ function calcularOrcamento(p){
   const sm=k=>itens.reduce((s,x)=>s+x[k],0),moveis=sm('cliente');
   const extrasCli=((+prm.carreto||0)+(+prm.km_extra||0)*(+prm.valor_km||0)+(+prm.montagem_extra||0)+(+prm.extra1_valor||0)+(+prm.extra2_valor||0))*((+prm.extras_margem||0)===1?marg:1);
   const total=moveis+extrasCli,desc=Math.round(total*(+prm.desconto_vista||0))/100,avista=total-desc,entrada=Math.round(avista*(+prm.entrada_pct||0))/100;
-  return {itens,mats,cortes,nPecas,prm,custo:sm('custo'),moveis,extrasCli,total,desc,avista,entrada,faltando:[...faltando]}}
+  const emendas=itens.filter(i=>i.pecas.some(p=>/emenda/.test(p.d))).map(i=>i.desc);
+  return {itens,mats,cortes,nPecas,prm,custo:sm('custo'),moveis,extrasCli,total,desc,avista,entrada,faltando:[...faltando],emendas}}
 const R$=v=>'R$ '+(+v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
 // ---- tela do orçamento
@@ -1323,6 +1324,7 @@ function telaOrc(){
   return `<section class="stack">
   <div class="pend ok bk"><div><b>Preços de ${esc(PRECOS.gerado)}</b><br><span class="meta">${PRECOS.precos.length} itens da sua Tabela de Preços + ferragens FGV</span></div><button data-a="carregarPrecos">Atualizar preços</button></div>
   ${o.faltando.length?`<div class="pend"><b>Itens com preço zerado na sua planilha (Precos_Ferragens_FGV / Tabela de Preços):</b> ${o.faltando.map(esc).join('; ')}</div>`:''}
+  ${o.emendas.length?`<div class="pend"><b>Peças maiores que a chapa (${chapaUtil().join(' × ')} úteis) foram divididas com emenda no meio:</b> ${o.emendas.map(esc).join('; ')}</div>`:''}
   ${o.itens.some(i=>i.aprox)?`<div class="pend"><b>Atenção:</b> torre quente, cooktop e cantos foram calculados como caixa comum. Confira esses no FreeCAD.</div>`:''}
   <div class="grid2">${PARAMS_UI.map(([k,n,st])=>`<div><label>${n}</label><input type="number" step="${st}" inputmode="decimal" data-o="orc" data-f="${k}" value="${prm[k]??''}"></div>`).join('')}</div>
   <div class="orc-tot">
@@ -1707,6 +1709,7 @@ function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBo
   const exs=[];g.ws.forEach((w,i)=>blocosExtras(A,A.paredes[i].id).forEach(b=>{let d=prof(w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1);
     if(b.t==='tampo'){const sob=mov.filter(x=>x.w===w&&x.z0+(+x.m.alt)<=b.z0+5&&x.u1>b.u0&&x.u0<b.u1);if(sob.length)d=Math.min(...sob.map(x=>x.d))-1}exs.push({ex:b,w,d})}));
   for(const x of [...mov,...exs].sort((a,b)=>b.d-a.d)){if(x.ex){const b=x.ex;caixa(x.w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1,b.cR,{lw:.8});
+      (b.emU||[]).forEach(u=>{const q1=prj(P3(x.w,u,b.n0,b.z1+1)),q2=prj(P3(x.w,u,b.n1,b.z1+1));ctx.beginPath();ctx.moveTo(q1[0],q1[1]);ctx.lineTo(q2[0],q2[1]);ctx.strokeStyle='#c62828';ctx.lineWidth=1.4*dpr;ctx.setLineDash([5*dpr,3*dpr]);ctx.stroke();ctx.setLineDash([])});
       if(b.t==='tampo'&&b.eng){const q1=prj(P3(x.w,b.u0,b.n1+1,b.z0+b.e)),q2=prj(P3(x.w,b.u1,b.n1+1,b.z0+b.e));ctx.beginPath();ctx.moveTo(q1[0],q1[1]);ctx.lineTo(q2[0],q2[1]);ctx.strokeStyle='rgba(40,40,40,.35)';ctx.lineWidth=.7*dpr;ctx.stroke()}continue}
     const {m,w,u0,u1,z0,pr}=x,f=paineisFrente(m),{cx:cc,fr}=coresMovel(m),e=15,ft=18,nf=f.pan.length?pr-ft:pr,zb0=z0+f.rod,zb1=z0+(+m.alt),P=[];
     if(f.rod)P.push([u0+20,u1-20,0,nf-50,z0,zb0,'#3b3d40']);
@@ -1948,6 +1951,13 @@ function cotasInternasPlanta(a,g,fs,T,real){const fg=real?'#30353a':'var(--fg)';
 const AVULSAS={tampo:{n:'Tampo engrossado (30 mm)',cor:'#8d6e63'},painel:{n:'Painel / peça avulsa',cor:'#607d8b'}};
 const NOME_FITA35=()=>acharInsumo('fita','35')||'Fita de Borda 35 mm (metro)';
 const fitasV=v=>[0,1,2,3].map(i=>v['f'+i]===false?0:1);
+function chapaUtil(){const c=(PRECOS&&PRECOS.chapa)||[2740,1840,10,4];return [c[0]-2*c[2],c[1]-2*c[2]]}
+function partesTampo(v){const [uc,ul]=chapaUtil(),C=+v.comp||0,Pf=+v.prof||0;const nc=Math.max(1,Math.ceil(C/uc)),nd=Math.max(1,Math.ceil(Pf/ul));return {nc,nd,cp:C/nc,pp:Pf/nd,uc,ul}}
+// peça maior que a chapa: emenda no meio (partes iguais), respeitando 2720 x 1820 úteis (gira se não tiver veio)
+function emendar(pc){const [uc,ul]=chapaUtil(),cabe=(c,l)=>(c<=uc&&l<=ul)||(!pc.veio&&c<=ul&&l<=uc);if(cabe(pc.c,pc.l))return [pc];
+  let nc=1,nl=1;while(!cabe(pc.c/nc,pc.l/nl)&&nc+nl<20){if(pc.c/nc>=pc.l/nl)nc++;else nl++}
+  const out=[],n=nc*nl;for(let i=0;i<nc;i++)for(let j=0;j<nl;j++)out.push({...pc,c:Math.round(pc.c/nc),l:Math.round(pc.l/nl),d:`${pc.d} (parte ${out.length+1}/${n}, emenda)`,
+    fita:[j===0?pc.fita[0]:0,j===nl-1?pc.fita[1]:0,i===0?pc.fita[2]:0,i===nc-1?pc.fita[3]:0],emenda:1});return out}
 function novaAvulsa(k,wid){const mv=(A.moveis||[]).filter(m=>m.parede===wid&&!ehAereo(m)&&m.larg&&(+m.alt||0)<=1200);
   if(k==='tampo'){const v={id:uid(),k,parede:wid,dist:0,comp:1200,prof:620,z:870,esp:15,faixa:70,eng:true,mat:'',nome:''};
     if(mv.length){const d0=Math.min(...mv.map(m=>+m.dist||0)),d1=Math.max(...mv.map(m=>(+m.dist||0)+(+m.larg)));
@@ -1970,6 +1980,7 @@ function avulsaHTML(v,idx){const t=AVULSAS[v.k]||AVULSAS.painel,k='v:'+v.id+':',
     <div><label>Faixa engrossado</label>${inp('v','faixa',v.faixa,k+'faixa',v.id)}</div></div>
   <div class="row wrap"><label class="chk"><input type="checkbox" data-o="v" data-id="${v.id}" data-f="eng" data-t="b"${v.eng!==false?' checked':''} data-full="1"> Engrossado (borda de ${v.eng!==false?2*(+v.esp||15):(+v.esp||15)} mm)</label>
     <span class="meta">Fita ${v.eng!==false?'35 mm':'comum'} em:</span>${['Frente','Trás','Esquerda','Direita'].map((n,i)=>`<label class="chk"><input type="checkbox" data-o="v" data-id="${v.id}" data-f="f${i}" data-t="b"${v['f'+i]!==false?' checked':''}> ${n}</label>`).join('')}</div>
+  ${(()=>{const t=partesTampo(v);return t.nc*t.nd>1?`<div class="pend"><b>Maior que a chapa</b> (${t.uc} × ${t.ul} úteis): vai em <b>${t.nc*t.nd} partes de ${Math.round(t.cp)} × ${Math.round(t.pp)}</b>, com emenda no meio.</div>`:''})()}
   <div class="row wrap"><button data-a="tampoMoveis" data-id="${v.id}">Pegar medidas dos balcões da parede</button></div>`
   :`<div class="ig">
     <div><label>Dist. do início</label>${inp('v','dist',v.dist,k+'dist',v.id)}</div>
@@ -1983,10 +1994,11 @@ function avulsaHTML(v,idx){const t=AVULSAS[v.k]||AVULSAS.painel,k='v:'+v.id+':',
 function pecasAvulsa(v){const out=[],ferr={},mat=v.mat||matPadrao('Frente'),F0=[0,0,0,0];
   const add=(d,c,l,esp,fita)=>out.push({d,papel:'Frente',mat,c:Math.round(c),l:Math.round(l),esp,fita,alt:esp,veio:!!pdv('veio_frente',0)});
   if(v.k==='tampo'){const C=+v.comp||0,Pf=+v.prof||0,e=+v.esp||15,fx=+v.faixa||70,fl=fitasV(v);
-    const util=((PRECOS&&PRECOS.chapa)||[2740])[0]-20,np=Math.max(1,Math.ceil(C/util)),cp=C/np;
-    if(v.eng!==false){for(let k=0;k<np;k++){add(np>1?`Tampo (parte ${k+1}/${np})`:'Tampo',cp,Pf,e,F0);add('Engrossado tampo',cp,fx,e,F0);add('Engrossado tampo',cp,fx,e,F0)}add('Engrossado tampo',Pf-2*fx,fx,e,F0);add('Engrossado tampo',Pf-2*fx,fx,e,F0);
+    const {nc:np,nd,cp,pp}=partesTampo(v),nt=np*nd;let kt=0;
+    const topo=(fl0)=>{for(let k=0;k<np;k++)for(let j=0;j<nd;j++)add(nt>1?`Tampo (parte ${++kt}/${nt}, emenda)`:'Tampo',cp,pp,e,fl0?[j===0?fl0[0]:0,j===nd-1?fl0[1]:0,k===0?fl0[2]:0,k===np-1?fl0[3]:0]:F0)};
+    if(v.eng!==false){topo(null);for(let k=0;k<np;k++){add('Engrossado tampo',cp,fx,e,F0);add('Engrossado tampo',cp,fx,e,F0)}add('Engrossado tampo',Pf-2*fx,fx,e,F0);add('Engrossado tampo',Pf-2*fx,fx,e,F0);
       const m=(fl[0]*C+fl[1]*C+fl[2]*Pf+fl[3]*Pf)/1000;if(m)ferr[NOME_FITA35()]=Math.round(m*100)/100}
-    else for(let k=0;k<np;k++)add(np>1?`Tampo (parte ${k+1}/${np})`:'Tampo',cp,Pf,e,[fl[0],fl[1],k===0?fl[2]:0,k===np-1?fl[3]:0])}
+    else topo(fl)}
   else add('Painel',+v.alt||0,+v.larg||0,+v.esp||18,[1,1,1,1]);
   return {pecas:out.filter(p=>p.c>0&&p.l>0),ferr}}
 function nomeAvulsa(v){return v.k==='tampo'?`${v.nome?v.nome+' - ':''}tampo ${v.eng!==false?'engrossado '+2*(+v.esp||15)+' mm':(+v.esp||15)+' mm'} ${v.comp} × ${v.prof}`:`${v.nome?v.nome+' - ':''}painel ${v.alt} × ${v.larg} × ${v.esp}`}
@@ -2001,7 +2013,8 @@ function blocosExtras(a,wid){const L=[],fr=18,mt=2;
     if(+m.tamp_topo)L.push({u0:u0-E*fr,u1:u1+D*fr,n0:0,n1,z0:z0+Ht,z1:z0+Ht+fr,cS,cR,t:'tamp'});
     if(+m.tamp_base)L.push({u0:u0-E*fr,u1:u1+D*fr,n0:0,n1,z0:z0-fr,z1:z0,cS,cR,t:'tamp'})});
   (a.avulsas||[]).forEach((v,i)=>{if(v.parede!==wid)return;const t=AVULSAS[v.k]||AVULSAS.painel,cR=corMaterial(v.mat||(PRECOS?matPadrao('Frente'):''),'Frente');
-    if(v.k==='tampo'){const e=+v.esp||15,h=v.eng!==false?2*e:e;L.push({u0:+v.dist||0,u1:(+v.dist||0)+(+v.comp||0),n0:0,n1:+v.prof||0,z0:+v.z||0,z1:(+v.z||0)+h,cS:t.cor,cR,t:'tampo',rot:'T'+(i+1),eng:v.eng!==false,fx:+v.faixa||70,e})}
+    if(v.k==='tampo'){const e=+v.esp||15,h=v.eng!==false?2*e:e;const pt=partesTampo(v),d0=+v.dist||0;L.push({u0:d0,u1:d0+(+v.comp||0),n0:0,n1:+v.prof||0,z0:+v.z||0,z1:(+v.z||0)+h,cS:t.cor,cR,t:'tampo',rot:'T'+(i+1),eng:v.eng!==false,fx:+v.faixa||70,e,
+      emU:Array.from({length:pt.nc-1},(_,k)=>d0+pt.cp*(k+1)),emN:Array.from({length:pt.nd-1},(_,k)=>(+v.prof||0)-pt.pp*(k+1))})}
     else L.push({u0:+v.dist||0,u1:(+v.dist||0)+(+v.larg||0),n0:0,n1:+v.esp||18,z0:+v.z||0,z1:(+v.z||0)+(+v.alt||0),cS:t.cor,cR,t:'painel',rot:'P'+(i+1)})});
   return L}
 // planta: contorno dos tamponamentos e das peças avulsas
@@ -2009,6 +2022,8 @@ function extrasPlanta(a,g,fs,real){let s='';
   g.ws.forEach((w,i)=>blocosExtras(a,a.paredes[i].id).forEach(b=>{const P=(u,n)=>[(w.ax+w.ux*u+w.ix*n).toFixed(1),(-(w.ay+w.uy*u+w.iy*n)).toFixed(1)].join(',');
     const cor=real?(b.t==='tamp'?'#3a3d42':b.t==='tampo'?'#6d5a48':'#455a64'):b.cS;
     s+=`<polygon points="${P(b.u0,b.n0)} ${P(b.u1,b.n0)} ${P(b.u1,b.n1)} ${P(b.u0,b.n1)}" style="fill:${b.t==='tamp'?cor:'none'};fill-opacity:${b.t==='tamp'?.55:0};stroke:${cor};stroke-width:${b.t==='tamp'?1:2}px;${b.t==='tampo'?'stroke-dasharray:10 4 2 4;':''}" vector-effect="non-scaling-stroke"/>`;
+    (b.emU||[]).forEach(u=>{s+=`<polyline points="${P(u,b.n0)} ${P(u,b.n1)}" fill="none" style="stroke:#c62828" stroke-width="1.6" stroke-dasharray="6 3" vector-effect="non-scaling-stroke"/>`});
+    (b.emN||[]).forEach(n=>{s+=`<polyline points="${P(b.u0,n)} ${P(b.u1,n)}" fill="none" style="stroke:#c62828" stroke-width="1.6" stroke-dasharray="6 3" vector-effect="non-scaling-stroke"/>`});
     if(b.rot){const [mx,my]=P((b.u0+b.u1)/2,b.n1-fs*.45).split(',');s+=`<text x="${mx}" y="${my}" font-size="${fs*.5}" text-anchor="middle" dominant-baseline="middle" style="fill:${cor};font-weight:700">${b.rot} · ${Math.round(b.u1-b.u0)}</text>`}}));
   return s}
 // elevação: tamponamentos e peças avulsas de frente
@@ -2016,6 +2031,7 @@ function extrasElev(a,wid,fs,real){let s='';const Y=z=>-z;
   blocosExtras(a,wid).forEach(b=>{const cor=real?b.cR:b.cS,lw=b.u1-b.u0,h=b.z1-b.z0;
     s+=`<rect x="${b.u0}" y="${Y(b.z1)}" width="${lw}" height="${h}" style="fill:${cor};fill-opacity:${real?1:.45};stroke:${real?'#2a2e33':b.cS}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`;
     if(b.t==='tampo'&&b.eng)s+=`<line x1="${b.u0}" y1="${Y(b.z0+b.e)}" x2="${b.u1}" y2="${Y(b.z0+b.e)}" style="stroke:${real?'#2a2e33':b.cS}" stroke-width=".6" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;
+    (b.emU||[]).forEach(u=>{s+=`<line x1="${u}" y1="${Y(b.z1)-fs*.5}" x2="${u}" y2="${Y(b.z0)+fs*.3}" style="stroke:#c62828" stroke-width="1.6" vector-effect="non-scaling-stroke"/><text x="${u}" y="${Y(b.z1)-fs*.7}" font-size="${fs*.45}" text-anchor="middle" style="fill:#c62828" font-weight="700">emenda</text>`});
     if(b.rot)s+=`<text x="${b.u0+lw/2}" y="${b.t==='tampo'?Y(b.z1)-fs*.35:Y(b.z0+h/2)}" font-size="${fs*.55}" text-anchor="middle" dominant-baseline="${b.t==='tampo'?'auto':'central'}" style="fill:${real?'#3a2e22':b.cS}" font-weight="700">${b.rot} · ${Math.round(lw)}${b.t==='tampo'?' × '+Math.round(b.n1)+' · '+Math.round(h)+' mm':''}</text>`});
   return s}
 
