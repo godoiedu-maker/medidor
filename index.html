@@ -96,9 +96,18 @@ details summary{cursor:pointer;font-weight:600;padding:4px 0}
 .quick{display:flex;flex-wrap:wrap;gap:6px}
 .quick button{min-height:40px;padding:6px 10px;font-size:.85rem}
 .quick i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.modelos{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.modelo{flex-direction:column;align-items:stretch;text-align:left;gap:4px;padding:10px 12px}
+.modelo span{font-weight:400;font-size:.82rem;color:var(--muted)}
+.modelo.desenhar{border:2px dashed var(--accent)}
+.mini{width:100%;height:110px;display:block}
+.tela-desenho{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+#pad{width:100%;height:min(62vh,640px);display:block;touch-action:none;cursor:crosshair}
+.num{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 6px;border-radius:14px;color:#fff;font-weight:700;font-size:.85rem;flex:none}
 .itens{display:flex;flex-direction:column;gap:10px}
 .item{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;background:var(--panel);padding:10px;display:flex;flex-direction:column;gap:8px}
 .ih{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 44px;gap:8px}
+.ihm{grid-template-columns:auto minmax(0,1.3fr) minmax(0,1fr) 44px;align-items:center}
 .ig{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
 .thumbs{display:flex;gap:8px;flex-wrap:wrap}
 .thumbs img{width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:var(--room)}
@@ -248,8 +257,8 @@ const letra=(id,a=A)=>{const i=a?a.paredes.findIndex(w=>w.id===id):-1;return i<0
 // Paredes em sequência, andando para a DIREITA (sentido horário visto de cima).
 // "ang" = ângulo interno do canto no FIM da parede (90 normal, 270 canto para dentro).
 function geo(a){
-  let x=0,y=0,d=0;const pts=[{x,y}],ws=[];
-  a.paredes.forEach(w=>{const L=w.L||1000;const ux=Math.cos(d),uy=Math.sin(d);
+  let x=0,y=0,d=(+a.giro||0)*Math.PI/180;const pts=[{x,y}],ws=[];
+  a.paredes.forEach(w=>{const L=w.L||w.Lp||1000;const ux=Math.cos(d),uy=Math.sin(d);
     ws.push({ax:x,ay:y,bx:x+L*ux,by:y+L*uy,ux,uy,L,ok:!!w.L});x+=L*ux;y+=L*uy;pts.push({x,y});
     d-=(180-(+w.ang||90))*Math.PI/180;});
   let ar=0;for(let i=0;i<pts.length-1;i++)ar+=pts[i].x*pts[i+1].y-pts[i+1].x*pts[i].y;
@@ -297,10 +306,10 @@ function planSVG(a,g,opt={}){
     s+=`<text x="${mx}" y="${my}" font-size="${fs}" text-anchor="middle" dominant-baseline="middle" transform="rotate(${r} ${mx} ${my})" style="fill:${miss?'var(--warn)':(sel?'var(--laser)':'var(--fg)')};font-weight:700" data-a="selW" data-id="${id}">${LETRAS[i]} · ${miss?'?':Math.round(w.L)}</text>`;
   });
   if(g.ws.length){const w=g.ws[0];s+=`<circle cx="${w.ax}" cy="${-w.ay}" r="${fs*.32}" style="fill:var(--accent)"/>`}
-  (a.moveis||[]).forEach(m=>{const i=a.paredes.findIndex(w=>w.id===m.parede);if(i<0||!m.larg||!m.prof)return;const w=g.ws[i],d0=+m.dist||0,d1=d0+(+m.larg),pr=+m.prof,ae=ehAereo(m);
+  (a.moveis||[]).forEach((m,mi)=>{const i=a.paredes.findIndex(w=>w.id===m.parede);if(i<0||!m.larg||!m.prof)return;const w=g.ws[i],d0=+m.dist||0,d1=d0+(+m.larg),pr=+m.prof,ae=ehAereo(m),cm=corMovel(m);
     const c=[[d0,0],[d1,0],[d1,pr],[d0,pr]].map(([u,n])=>[w.ax+w.ux*u+w.ix*n,-(w.ay+w.uy*u+w.iy*n)]);
-    s+=`<polygon points="${c.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" style="fill:${ae?'none':'#c9a27a'};fill-opacity:.55;stroke:#8a5a2b;stroke-width:2px;${ae?'stroke-dasharray:8 6;':''}" vector-effect="non-scaling-stroke" data-a="selW" data-id="${m.parede}"/>`;
-    const mx=(c[0][0]+c[2][0])/2,my=(c[0][1]+c[2][1])/2;s+=`<text x="${mx}" y="${my}" font-size="${fs*.6}" text-anchor="middle" dominant-baseline="middle" style="fill:#5a3a1a;font-weight:700">${esc(m.nome||((MOVEIS[m.k]||{}).n||'').split(' ')[0])} ${m.larg}</text>`});
+    s+=`<polygon points="${c.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" style="fill:${ae?'none':cm};fill-opacity:.28;stroke:${cm};stroke-width:2.5px;${ae?'stroke-dasharray:8 6;':''}" vector-effect="non-scaling-stroke" data-a="selW" data-id="${m.parede}"/>`;
+    const mx=(c[0][0]+c[2][0])/2,my=(c[0][1]+c[2][1])/2;s+=`<text x="${mx}" y="${my}" font-size="${fs*.6}" text-anchor="middle" dominant-baseline="middle" style="fill:${cm};font-weight:700">M${mi+1} · ${m.larg}</text>`});
   a.itens.forEach(it=>{const i=a.paredes.findIndex(w=>w.id===it.parede);if(i<0)return;const w=g.ws[i],t=TIPOS[it.tipo]||TIPOS.outro,d=it.dist||0;
     if(t.ab){const d2=d+(it.larg||500),o=fs*.22;
       s+=`<line x1="${w.ax+w.ux*d+w.ix*o}" y1="${-(w.ay+w.uy*d+w.iy*o)}" x2="${w.ax+w.ux*d2+w.ix*o}" y2="${-(w.ay+w.uy*d2+w.iy*o)}" stroke="${t.cor}" stroke-width="9" vector-effect="non-scaling-stroke"/>`;
@@ -323,6 +332,8 @@ function render(){
   else if(view==='diag')m.innerHTML=telaDiag();
   else if(view==='ajuda')m.innerHTML=telaAjuda();
   else if(view==='orc')m.innerHTML=telaOrc();
+  else if(view==='modelo')m.innerHTML=telaModelo();
+  else if(view==='desenho'){m.innerHTML=telaDesenho();ligarPad()}
   carregarThumbs();marcarAlvo();guardarNav();
 }
 
@@ -348,11 +359,8 @@ function telaProjeto(){
   </div>
   <div><label for="po">Observações</label><textarea id="po" data-o="p" data-f="obs" rows="2">${esc(P.obs)}</textarea></div>
   <div class="bar"><h2>Ambientes</h2></div>
-  ${P.ambientes.length?`<div class="cards">${P.ambientes.map(a=>{const pe=pendencias(a);return `<button class="card" data-a="abrirAmb" data-id="${a.id}"><b>${esc(a.nome)}</b><span class="meta">${a.paredes.length} paredes · ${a.itens.length} pontos · ${a.fotos.length} fotos${a.peDireito?' · PD '+a.peDireito:''}</span>${pe.length?`<span class="pill warn">${pe.length} pendência(s)</span>`:'<span class="pill ok">completo</span>'}</button>`}).join('')}</div>`:'<p class="meta">Escolha o formato do primeiro ambiente abaixo.</p>'}
-  <div class="row wrap"><span class="lbl">Novo ambiente:</span>
-    <button data-a="novoAmb" data-f="ret">Retangular (4 paredes)</button>
-    <button data-a="novoAmb" data-f="L">Em L (6 paredes)</button>
-    <button data-a="novoAmb" data-f="1">Parede única</button></div>
+  ${P.ambientes.length?`<div class="cards">${P.ambientes.map(a=>{const pe=pendencias(a);return `<button class="card" data-a="abrirAmb" data-id="${a.id}"><b>${esc(a.nome)}</b><span class="meta">${a.paredes.length} paredes · ${a.itens.length} pontos · ${a.fotos.length} fotos${a.peDireito?' · PD '+a.peDireito:''}</span>${pe.length?`<span class="pill warn">${pe.length} pendência(s)</span>`:'<span class="pill ok">completo</span>'}</button>`}).join('')}</div>`:'<p class="meta">Toque em <b>+ Novo ambiente</b> e escolha um modelo ou desenhe o formato com o dedo.</p>'}
+  <div><button class="primary" data-a="novoAmbTela">+ Novo ambiente</button></div>
   <div class="bar"><h2>Exportar</h2></div>
   <div class="exp">
     <button data-a="abrirOrc" style="border-color:var(--ok)"><b>💰 Orçamento, cores e corte</b><span>Preço ao cliente, chapas, ferragens, Excel e lista Leo</span></button>
@@ -396,9 +404,10 @@ function itemHTML(it){
   </div>`;
 }
 
-function movelHTML(m){const k='m:'+m.id+':';
-  return `<div class="item" style="--c:#8a5a2b">
-  <div class="ih">
+function movelHTML(m,idx){const k='m:'+m.id+':',c=corMovel(m);
+  return `<div class="item" style="--c:${c}">
+  <div class="ih ihm">
+    <span class="num" style="background:${c}" title="Móvel ${idx+1}">M${idx+1}</span>
     <select aria-label="Tipo de móvel" data-o="m" data-id="${m.id}" data-f="k" data-full="1">${Object.entries(MOVEIS).map(([kk,t])=>`<option value="${kk}"${kk===m.k?' selected':''}>${t.n}</option>`).join('')}</select>
     <select aria-label="Parede" data-o="m" data-id="${m.id}" data-f="parede" data-full="1">${A.paredes.map((w,i)=>`<option value="${w.id}"${w.id===m.parede?' selected':''}>Parede ${LETRAS[i]}</option>`).join('')}</select>
     <button class="ic" data-a="delM" data-id="${m.id}" aria-label="Apagar móvel">✕</button>
@@ -457,7 +466,7 @@ function telaAmb(){
     <p class="dica">Distância a partir do canto <b>esquerdo</b> da parede, olhando de frente. Altura sempre a partir do piso.</p>
     <div class="itens">${A.itens.map(itemHTML).join('')||'<p class="meta">Nenhum ponto ainda. Toque numa parede da planta e escolha o tipo acima.</p>'}</div>
     <div class="bar"><h3>Móveis</h3><span class="meta">adicionar na parede <b>${letra(selW)}</b></span></div>
-    <div class="quick">${Object.entries(MOVEIS).map(([k,t])=>`<button data-a="addM" data-f="${k}">${t.n}</button>`).join('')}</div>
+    <div class="quick">${Object.entries(MOVEIS).map(([k,t])=>`<button data-a="addM" data-f="${k}"><i style="background:${corMovel({k})}"></i>${t.n}</button>`).join('')}</div>
     <p class="dica">Mesmos móveis da bancada do FreeCAD. Distância a partir do início da parede até a lateral esquerda do móvel. Um novo móvel entra encostado no último da mesma parede.</p>
     <div class="itens">${(A.moveis||[]).map(movelHTML).join('')||'<p class="meta">Nenhum móvel ainda.</p>'}</div>
     <div class="bar"><h3>Fotos do ambiente</h3>${fotoBtn('a',A.id)}</div>
@@ -1282,7 +1291,7 @@ function telaOrc(){
     <div><span class="meta">Entrada ${prm.entrada_pct||0}%</span><b>${R$(o.entrada)}</b></div>
   </div>
   <div class="bar"><h3>Móveis</h3><span class="meta">${o.nPecas} peças · ${o.cortes} cortes · ${Object.values(o.mats).reduce((s,m)=>s+m.chapas,0)} chapas</span></div>
-  <div class="itens">${o.itens.map(it=>`<div class="item" style="--c:#8a5a2b">
+  <div class="itens">${o.itens.map(it=>`<div class="item" style="--c:${corMovel(it.m)}">
     <div class="bar"><b>${esc(it.desc)}</b><b>${R$(it.cliente)}</b></div>
     <span class="meta">${esc(it.amb)} · ${it.m.larg} × ${it.m.alt} × ${it.m.prof} · custo ${R$(it.custo)} (MDF ${R$(it.mdf)}, fita ${R$(it.fitaC)}, ferragens ${R$(it.ferrC)}, cortes ${R$(it.corteC)})</span>
     <div class="ig">
@@ -1346,6 +1355,126 @@ function orcLeo(){const g=new Map;
   for(const [k,q] of g){const [c,l,d,m,f0,f1,f2,f3,a]=k.split('|');L.push([q,c,l,d,m,f0,f1,f2,f3,a].join(';'))}
   return '﻿'+L.join('\r\n')+'\r\n'}
 
+/* ================= MODELOS DE AMBIENTE e DESENHO COM O DEDO ================= */
+const MODELOS=[
+  {k:'ret',n:'Retangular',d:'4 paredes — quarto, sala, cozinha',Lp:[4000,3000,4000,3000],ang:[90,90,90,90]},
+  {k:'L',n:'Em L',d:'6 paredes — sala e cozinha integradas, suíte com closet',Lp:[4000,1500,2000,1500,2000,3000],ang:[90,90,270,90,90,90]},
+  {k:'pilar',n:'Com pilar ou shaft',d:'8 paredes — recorte no meio de uma parede',Lp:[1500,400,1000,400,1500,3000,4000,3000],ang:[90,270,270,90,90,90,90,90]},
+  {k:'chanfro',n:'Com parede inclinada',d:'5 paredes — um canto chanfrado a 45°',Lp:[4000,2000,1414,3000,3000],ang:[90,135,135,90,90]},
+  {k:'U',n:'Três paredes (U)',d:'Cozinha em U, closet, nicho — sem a 4ª parede',Lp:[2000,3000,2000],ang:[90,90,90]},
+  {k:'canto',n:'Canto (2 paredes)',d:'Só as paredes que vão ter móvel, em L',Lp:[3000,2000],ang:[90,90]},
+  {k:'1',n:'Parede única',d:'Uma parede reta — painel, bancada, aéreo',Lp:[3000],ang:[90]}];
+const NOMES_AMB=['Cozinha','Sala','Área gourmet','Suíte','Quarto','WC','Lavabo','Lavanderia','Closet','Home office','Corredor','Varanda'];
+let novoNome='',desenho=null;
+
+function miniPlan(paredes,giro){const g=geo({paredes,giro}),xs=g.pts.map(p=>p.x),ys=g.pts.map(p=>p.y);
+  const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),sp=Math.max(x1-x0,y1-y0,1),pd=sp*.14;
+  const fech=paredes.length>=3&&g.fech<sp*.02;
+  let s=`<svg viewBox="${x0-pd} ${-y1-pd} ${x1-x0+2*pd} ${y1-y0+2*pd}" class="mini" aria-hidden="true">`;
+  if(fech)s+=`<polygon points="${g.pts.slice(0,-1).map(p=>p.x+','+(-p.y)).join(' ')}" style="fill:var(--room)"/>`;
+  s+=`<polyline points="${g.pts.map(p=>p.x+','+(-p.y)).join(' ')}" fill="none" style="stroke:var(--fg)" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+  g.ws.forEach((w,i)=>{const mx=(w.ax+w.bx)/2+w.ix*sp*.08,my=-((w.ay+w.by)/2+w.iy*sp*.08);s+=`<text x="${mx}" y="${my}" font-size="${sp*.09}" text-anchor="middle" dominant-baseline="central" style="fill:var(--muted);font-weight:700">${LETRAS[i]}</text>`});
+  const w=g.ws[0];if(w)s+=`<circle cx="${w.ax}" cy="${-w.ay}" r="${sp*.035}" style="fill:var(--accent)"/>`;
+  return s+'</svg>'}
+
+function telaModelo(){titulo('Novo ambiente',P.cliente||'');
+  return `<section class="stack">
+  <div><label>Nome do ambiente</label><input id="novoNome" value="${esc(novoNome)}" placeholder="Ambiente ${P.ambientes.length+1}"></div>
+  <div class="quick">${NOMES_AMB.map(n=>`<button data-a="nomeAmb" data-f="${n}"${n===novoNome?' class="primary"':''}>${n}</button>`).join('')}</div>
+  <div class="bar"><h3>Escolha o formato</h3></div>
+  <div class="modelos">
+    <button class="modelo desenhar" data-a="desenhar"><svg viewBox="0 0 100 70" class="mini" aria-hidden="true"><path d="M12 58 L14 14 L60 12 L62 34 L88 36 L86 58 Z" fill="none" style="stroke:var(--accent)" stroke-width="3" stroke-dasharray="5 4" stroke-linejoin="round"/><path d="M78 50 l10 -16 4 3 -10 16 -5 1z" style="fill:var(--accent)"/></svg><b>Desenhar com o dedo</b><span>Risque o formato na tela, depois coloque as medidas</span></button>
+    ${MODELOS.map(m=>`<button class="modelo" data-a="usarModelo" data-f="${m.k}">${miniPlan(m.Lp.map((L,i)=>({L,ang:m.ang[i]})))}<b>${m.n}</b><span>${m.d}</span></button>`).join('')}
+  </div>
+  <p class="dica">O ponto verde é o início da parede A. As medidas do desenho são só de exemplo: você troca todas pela trena.</p>
+  </section>`}
+
+function criarAmbiente(Lp,ang,giro){
+  const nome=($('#novoNome')&&$('#novoNome').value.trim())||novoNome||'Ambiente '+(P.ambientes.length+1);
+  A={id:uid(),nome,peDireito:null,paredes:Lp.map((L,i)=>({id:uid(),L:null,Lp:Math.round(L),ang:ang[i]})),itens:[],moveis:[],fotos:[],obs:'',diag1:null,diag2:null};
+  if(giro)A.giro=giro;
+  P.ambientes.push(A);salvar();novoNome='';desenho=null;selW=null;alvoKey='pd';view='amb';render();scrollTo(0,0);toast('Meça o pé-direito e depois cada parede, começando pela A')}
+
+// ---- desenho
+function telaDesenho(){titulo('Desenhar o ambiente',novoNome||'');
+  const r=desenho&&desenho.res;
+  return `<section class="stack">
+  <p class="dica">${r?`Ficou assim: <b>${r.Lp.length} paredes</b>${r.fechado?'':' (aberto)'}. A parede <b>A</b> começa no ponto verde. Se não ficou bom, apague e risque de novo.`
+    :'Risque o contorno do ambiente com o dedo ou a caneta, <b>sem tirar da tela</b>. Comece pela parede A. Para fechar, termine perto de onde começou. Os cantos ficam retos (90°) ou a 45° sozinhos.'}</p>
+  <div class="tela-desenho"><svg id="pad" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">
+    <defs><pattern id="grade" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" style="stroke:var(--line)" stroke-width="1"/></pattern></defs>
+    <rect width="1000" height="700" fill="url(#grade)"/>
+    ${r?r.svg:''}
+    <polyline id="traco" fill="none" style="stroke:var(--laser)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" points=""/>
+  </svg></div>
+  <div class="row wrap">
+    ${r?`<button class="primary" data-a="desenhoUsar">Usar este formato</button>`:''}
+    <button data-a="desenhoLimpar">Apagar e riscar de novo</button>
+    <button data-a="desenhoVoltar">Voltar aos modelos</button>
+  </div></section>`}
+
+function _rdp(p,eps){if(p.length<3)return p.slice();const [a,b]=[p[0],p[p.length-1]],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1;
+  let mx=-1,ix=0;for(let i=1;i<p.length-1;i++){const d=Math.abs(dy*p[i].x-dx*p[i].y+b.x*a.y-b.y*a.x)/L;if(d>mx){mx=d;ix=i}}
+  if(mx>eps)return [..._rdp(p.slice(0,ix+1),eps).slice(0,-1),..._rdp(p.slice(ix),eps)];return [a,b]}
+const _norm=a=>{a%=360;if(a>180)a-=360;if(a<=-180)a+=360;return a};
+function _snap(deg){const r90=Math.round(deg/90)*90;if(Math.abs(_norm(deg-r90))<=20)return _norm(r90);return _norm(Math.round(deg/45)*45)}
+
+function processarDesenho(raw){
+  if(raw.length<8)return null;
+  const xs=raw.map(p=>p.x),ys=raw.map(p=>p.y),diag=Math.hypot(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));if(diag<80)return null;
+  const p0=raw[0],pn=raw[raw.length-1],fechado=Math.hypot(pn.x-p0.x,pn.y-p0.y)<diag*.18;
+  const pts=raw.map(p=>({x:p.x,y:-p.y}));if(fechado)pts[pts.length-1]={...pts[0]};
+  let s;if(fechado){let k=0,md=-1;pts.forEach((q,i)=>{const d=Math.hypot(q.x-pts[0].x,q.y-pts[0].y);if(d>md){md=d;k=i}});
+    s=[..._rdp(pts.slice(0,k+1),diag*.045).slice(0,-1),..._rdp(pts.slice(k),diag*.045)]}else s=_rdp(pts,diag*.045);
+  let seg=[];
+  for(let i=0;i<s.length-1;i++){const dx=s[i+1].x-s[i].x,dy=s[i+1].y-s[i].y,L=Math.hypot(dx,dy);if(L>0)seg.push({h:_snap(Math.atan2(dy,dx)*180/Math.PI),L})}
+  const juntar=()=>{let ch=true;while(ch&&seg.length>1){ch=false;
+      for(let i=0;i<seg.length;i++){const j=(i+1)%seg.length;if(!fechado&&j===0)break;
+        if(seg[i].h===seg[j].h&&i!==j){seg[i].L+=seg[j].L;seg.splice(j,1);if(j<i)i--;ch=true;break}}}};
+  juntar();
+  const minL=diag*.06;let mud=true;
+  while(mud&&seg.length>(fechado?3:1)){mud=false;const i=seg.findIndex(x=>x.L<minL);if(i>=0){seg.splice(i,1);juntar();mud=true}}
+  seg=seg.filter((x,i,a)=>!(a.length>1&&Math.abs(_norm(x.h-a[(i+1)%a.length].h))===180&&(fechado||i<a.length-1)));
+  if(fechado&&seg.length<3)return null;if(!seg.length)return null;
+  // orientação: as paredes andam no sentido horário (giro à direita)
+  const vira=(a,b)=>_norm(a.h-b.h);
+  let soma=0;for(let i=0;i<seg.length-(fechado?0:1);i++)soma+=vira(seg[i],seg[(i+1)%seg.length]);
+  if(soma<0){const inv=x=>({h:_norm(x.h+180),L:x.L});
+    seg=fechado?[inv(seg[0]),...seg.slice(1).reverse().map(inv)]:seg.slice().reverse().map(inv)}
+  // fecha a planta distribuindo a diferença (mínimos quadrados) sem mudar ângulos
+  if(fechado){const u=seg.map(x=>[Math.cos(x.h*Math.PI/180),Math.sin(x.h*Math.PI/180)]);
+    const ex=seg.reduce((t,x,i)=>t+x.L*u[i][0],0),ey=seg.reduce((t,x,i)=>t+x.L*u[i][1],0);
+    let a=0,b=0,c=0;u.forEach(([ux,uy])=>{a+=ux*ux;b+=ux*uy;c+=uy*uy});const det=a*c-b*b;
+    if(Math.abs(det)>1e-6){const l1=(c*ex-b*ey)/det,l2=(a*ey-b*ex)/det,nv=seg.map((x,i)=>x.L-(l1*u[i][0]+l2*u[i][1]));
+      if(nv.every(v=>v>minL*.5))seg.forEach((x,i)=>x.L=nv[i])}}
+  const ang=seg.map((x,i)=>{if(!fechado&&i===seg.length-1)return 90;return Math.round(180-vira(x,seg[(i+1)%seg.length]))});
+  const esc_=4000/Math.max(...seg.map(x=>x.L)),Lp=seg.map(x=>Math.round(x.L*esc_/10)*10),giro=seg[0].h;
+  // prévia sobre a tela
+  let x=0,y=0;const P2=[{x,y}];seg.forEach(sg=>{x+=sg.L*Math.cos(sg.h*Math.PI/180);y+=sg.L*Math.sin(sg.h*Math.PI/180);P2.push({x,y})});
+  const bx=Math.min(...P2.map(p=>p.x)),by=Math.max(...P2.map(p=>p.y)),bw=Math.max(...P2.map(p=>p.x))-bx||1,bh=by-Math.min(...P2.map(p=>p.y))||1;
+  const k=Math.min(800/bw,520/bh),ox=500-bw*k/2,oy=350-bh*k/2,T=p=>[ox+(p.x-bx)*k,oy+(by-p.y)*k];
+  let svg=fechado?`<polygon points="${P2.slice(0,-1).map(p=>T(p).join(',')).join(' ')}" style="fill:var(--room)"/>`:'';
+  svg+=`<polyline points="${P2.map(p=>T(p).join(',')).join(' ')}" fill="none" style="stroke:var(--fg)" stroke-width="6" stroke-linejoin="round"/>`;
+  seg.forEach((sg,i)=>{const [ax,ay]=T(P2[i]),[cx,cy]=T(P2[i+1]),mx=(ax+cx)/2,my=(ay+cy)/2,h=sg.h*Math.PI/180;
+    const nx=-Math.sin(h)*-1,ny=-Math.cos(h)*-1;// para dentro (lado direito do sentido)
+    svg+=`<circle cx="${mx+nx*34}" cy="${my+ny*34}" r="22" style="fill:var(--accent)"/><text x="${mx+nx*34}" y="${my+ny*34}" font-size="26" text-anchor="middle" dominant-baseline="central" fill="#fff" font-weight="700">${LETRAS[i]}</text>`});
+  const [sx,sy]=T(P2[0]);svg+=`<circle cx="${sx}" cy="${sy}" r="12" style="fill:var(--accent)"/>`;
+  return {Lp,ang,giro,fechado,svg}}
+
+function ligarPad(){const pad=$('#pad');if(!pad||pad._ok)return;pad._ok=1;let pts=null;
+  const pt=e=>{const r=pad.getBoundingClientRect(),k=Math.max(1000/r.width,700/r.height),ox=(r.width*k-1000)/2,oy=(r.height*k-700)/2;return {x:(e.clientX-r.left)*k-ox,y:(e.clientY-r.top)*k-oy}};
+  pad.addEventListener('pointerdown',e=>{e.preventDefault();pad.setPointerCapture(e.pointerId);pts=[pt(e)];if(desenho&&desenho.res){desenho=null;render();return}});
+  pad.addEventListener('pointermove',e=>{if(!pts)return;e.preventDefault();const p=pt(e),q=pts[pts.length-1];if(Math.hypot(p.x-q.x,p.y-q.y)>3){pts.push(p);$('#traco').setAttribute('points',pts.map(v=>v.x.toFixed(0)+','+v.y.toFixed(0)).join(' '))}});
+  const fim=()=>{if(!pts)return;const raw=pts;pts=null;const res=processarDesenho(raw);
+    if(!res){$('#traco').setAttribute('points','');toast('Não entendi o desenho. Risque o contorno sem tirar o dedo da tela.');return}
+    desenho={res};render()};
+  pad.addEventListener('pointerup',fim);pad.addEventListener('pointercancel',fim)}
+
+// ---- cores dos móveis
+const COR_MOVEL={inferior:'#2e7d32',gabinete:'#00838f',gaveteiro:'#9e9d24',aereo:'#3949ab',espelheira:'#7e57c2',torre:'#6d4c41',torre_quente:'#c62828',cooktop:'#ad1457',
+  canto_l_esq:'#546e7a',canto_l_dir:'#546e7a',canto_reto_esq:'#8d6e63',canto_reto_dir:'#8d6e63'};
+const corMovel=m=>COR_MOVEL[m.k]||COR_MOVEL[m.tipo]||'#8a5a2b';
+
 /* ================= eventos ================= */
 function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id)}
 document.addEventListener('click',async e=>{
@@ -1383,6 +1512,13 @@ document.addEventListener('click',async e=>{
     case 'delProj':if(!dupla(b))return;for(const fo of P.ambientes.flatMap(fotosAmb))dbDel('fotos',fo).catch(()=>{});
       await dbDel('projetos',P.id);projetos=projetos.filter(p=>p!==P);P=null;view='lista';render();break;
     case 'exp':exportar(f);break;
+    case 'novoAmbTela':novoNome='';desenho=null;view='modelo';render();scrollTo(0,0);break;
+    case 'nomeAmb':novoNome=f;render();break;
+    case 'usarModelo':{const m=MODELOS.find(x=>x.k===f);if($('#novoNome'))novoNome=$('#novoNome').value.trim()||novoNome;criarAmbiente(m.Lp,m.ang,0);break;}
+    case 'desenhar':if($('#novoNome'))novoNome=$('#novoNome').value.trim()||novoNome;desenho=null;view='desenho';render();scrollTo(0,0);break;
+    case 'desenhoLimpar':desenho=null;render();break;
+    case 'desenhoVoltar':desenho=null;view='modelo';render();break;
+    case 'desenhoUsar':if(desenho&&desenho.res){const r=desenho.res;criarAmbiente(r.Lp,r.ang,r.giro)}break;
     case 'abrirOrc':view='orc';render();scrollTo(0,0);break;
     case 'carregarPrecos':$('#precoFile').click();break;
     case 'orcCli':if(ORC)await entregar(slug(P.cliente)+'_orcamento.html',new Blob([orcClienteHTML()],{type:'text/html'}));break;
@@ -1423,7 +1559,7 @@ document.addEventListener('change',async e=>{
   if(o==='m'&&el.dataset.f==='k'&&MOVEIS[v]){const pr=MOVEIS[v];Object.assign(t,{tipo:pr.tipo,larg:pr.larg,alt:pr.alt,prof:pr.prof,z:pr.z,portas:pr.portas,gavetas:pr.gavetas,prats:pr.prats,base:pr.base});salvar()}
   if(el.dataset.full)render();else if(view==='amb')parcial();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
 });
-$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='orc'){view='projeto'}else if(view==='diag'||view==='ajuda'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
+$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='orc'||view==='modelo'){view='projeto'}else if(view==='desenho'){desenho=null;view='modelo'}else if(view==='diag'||view==='ajuda'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
 $('#fabMedir').onclick=medirRemoto;$('#fabLaser').onclick=alternarLaser;
 $('#menuBtn').onclick=()=>{$('#menu').hidden=!$('#menu').hidden};
 
