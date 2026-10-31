@@ -339,7 +339,7 @@ function planSVGreal(a,g,opt={}){const T=ESP_PAREDE;
     if(it.tipo==='viga'){const d2=d+(it.larg||300);s+=`<polyline points="${P2(w,d,0)} ${P2(w,d,250)} ${P2(w,d2,250)} ${P2(w,d2,0)}" fill="none" stroke="${t.cor}" stroke-width="1.5" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>`}
     else if(!t.ab){const cx=w.ax+w.ux*d+w.ix*fs*.75,cy=-(w.ay+w.uy*d+w.iy*fs*.75);
       s+=`<circle cx="${cx}" cy="${cy}" r="${fs*.45}" fill="${t.cor}"/><text x="${cx}" y="${cy}" font-size="${fs*.55}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-weight="700">${esc(t.n[0])}</text>`}});
-  s+=cotasInternasPlanta(a,g,fs,T,true);
+  s+=extrasPlanta(a,g,fs,true);s+=cotasInternasPlanta(a,g,fs,T,true);
   return s+'</svg>'}
 
 
@@ -453,7 +453,9 @@ function movelHTML(m,idx){const k='m:'+m.id+':',c=corMovel(m);
     <div><label>Base</label><select data-o="m" data-id="${m.id}" data-f="base" data-t="n">${BASES.map((b,i)=>`<option value="${i}"${+m.base===i?' selected':''}>${b}</option>`).join('')}</select></div>
   </div>
   <div class="row wrap"><label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_esq" data-t="b"${m.tamp_esq?' checked':''}> Tamponamento esquerdo</label>
-    <label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_dir" data-t="b"${m.tamp_dir?' checked':''}> Tamponamento direito</label></div>
+    <label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_dir" data-t="b"${m.tamp_dir?' checked':''}> Tamponamento direito</label>
+    ${m.tipo!=='inferior'&&m.tipo!=='cooktop'||ehAereo(m)?`<label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_topo" data-t="b"${m.tamp_topo?' checked':''}> Tamponamento em cima</label>`:''}
+    ${ehAereo(m)?`<label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_base" data-t="b"${m.tamp_base?' checked':''}> Tamponamento embaixo</label>`:''}</div>
   <input aria-label="Nome" data-o="m" data-id="${m.id}" data-f="nome" value="${esc(m.nome)}" placeholder="Nome (ex.: gabinete pia)">
   </div>`}
 function difTxt(m,c){if(!c||!m)return '';const d=Math.round(m-c);return `${Math.abs(d)<=5?'✓ no esquadro':'⚠ fora de esquadro'} · calculada ${Math.round(c)} · dif. ${d>0?'+':''}${d} mm`}
@@ -497,6 +499,10 @@ function telaAmb(){
     <div class="quick">${Object.entries(MOVEIS).map(([k,t])=>`<button data-a="addM" data-f="${k}"><i style="background:${corMovel({k})}"></i>${t.n}</button>`).join('')}</div>
     <p class="dica">Mesmos móveis da bancada do FreeCAD. Distância a partir do início da parede até a lateral esquerda do móvel. Um novo móvel entra encostado no último da mesma parede.</p>
     <div class="itens">${(A.moveis||[]).map(movelHTML).join('')||'<p class="meta">Nenhum móvel ainda.</p>'}</div>
+    <div class="bar"><h3>Peças avulsas</h3><span class="meta">tampos e painéis, separados das caixas · parede <b>${letra(selW)}</b></span></div>
+    <div class="quick">${Object.entries(AVULSAS).map(([k,t])=>`<button data-a="addV" data-f="${k}"><i style="background:${t.cor}"></i>${t.n}</button>`).join('')}</div>
+    <p class="dica">O tampo entra com a medida geral (pode cobrir vários balcões). Ao criar, ele já pega o comprimento, a profundidade (+38 mm de frente e avanço) e a altura dos balcões da parede.</p>
+    <div class="itens">${(A.avulsas||[]).map(avulsaHTML).join('')||'<p class="meta">Nenhuma peça avulsa.</p>'}</div>
     <div class="bar"><h3>Fotos do ambiente</h3>${fotoBtn('a',A.id)}</div>
     ${A.fotos.length?`<div class="thumbs">${A.fotos.map(f=>`<img data-foto="${f}" data-a="verFoto" data-id="${f}" data-dono="amb" alt="Foto do ambiente">`).join('')}</div>`:''}
     <div><label for="ao">Observações</label><textarea id="ao" data-o="a" data-f="obs" rows="3" placeholder="Ex.: parede B com prumo ruim, piso vai trocar">${esc(A.obs)}</textarea></div>
@@ -833,6 +839,7 @@ async function macro(p){
         eS:i>0?+a.paredes[i-1].ang<180:(f&&+a.paredes[n-1].ang<180),eE:(i<n-1||f)&&+a.paredes[i].ang<180,obs:pw.obs||'',fotos})}
     ambs.push({nome:a.nome,H,fechado:f,pts,obs:a.obs||'',ws,
       moveis:(a.moveis||[]).map(m=>({...m,p:a.paredes.findIndex(w=>w.id===m.parede)})),
+      avulsas:(a.avulsas||[]).map(v=>({...v,fitas:fitasV(v),p:a.paredes.findIndex(w=>w.id===v.parede)})),
       itens:a.itens.map(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;return {nome:t.n,tipo:it.tipo,ab:!!t.ab,p:a.paredes.findIndex(w=>w.id===it.parede),dist:it.dist||0,alt:it.alt||0,larg:it.larg||0,h:it.h||0,obs:it.obs||'',dob:it.dob||'e',abre:it.abre||'dentro',acab:it.acab||'',modelo:it.modelo||'',mods:it.mods||'',v220:!!it.v220}})})}
   const D={titulo:p.cliente||'Medicao',endereco:p.endereco||'',ambientes:ambs};
   const json=JSON.stringify(D).replace(/'''/g,"' ' '");
@@ -1204,6 +1211,9 @@ function pecasMovel(m){
   const tw=P+fr+mt,hT=gPe!==null?Atot-gPe:([0,1,4].includes(base)?Atot:Atot-R);
   if(+m.tamp_esq)add('Tamponamento','Frente',[fr,tw,hT],'Z','Y',F4);
   if(+m.tamp_dir)add('Tamponamento','Frente',[fr,tw,hT],'Z','Y',F4);
+  const lT=L+(+m.tamp_esq?fr:0)+(+m.tamp_dir?fr:0);
+  if(+m.tamp_topo)add('Tamponamento topo','Frente',[lT,tw,fr],'X','Y',F4);
+  if(+m.tamp_base)add('Tamponamento base','Frente',[lT,tw,fr],'X','Y',F4);
   return {pecas:out.filter(p=>p.c>0&&p.l>0),compGav,aprox:!['inferior','aereo','torre'].includes(tipo)}}
 
 // ---- ferragens de um móvel (calcular_itens)
@@ -1273,6 +1283,11 @@ function calcularOrcamento(p){
     const r=pecasMovel(m),f=ferragensMovel(m,r),it={amb:a.nome,m,desc:nomeMovel(m),pecas:r.pecas,aprox:r.aprox,ferr:f,area:{},fita:{}};
     for(const pc of r.pecas){it.area[pc.mat]=(it.area[pc.mat]||0)+pc.c*pc.l/1e6;const fm=((pc.fita[0]+pc.fita[1])*pc.c+(pc.fita[2]+pc.fita[3])*pc.l)/1000;if(fm)it.fita[pc.mat]=(it.fita[pc.mat]||0)+fm;todas.push(pc)}
     itens.push(it)}
+  for(const a of p.ambientes)for(const v of (a.avulsas||[])){const r=pecasAvulsa(v);if(!r.pecas.length)continue;
+    const mv={...v,larg:v.k==='tampo'?v.comp:v.larg,alt:v.k==='tampo'?(v.eng!==false?2*(+v.esp||15):+v.esp||15):v.alt,prof:v.k==='tampo'?v.prof:v.esp};
+    const it={amb:a.nome,m:mv,av:1,desc:nomeAvulsa(v),pecas:r.pecas,aprox:false,ferr:r.ferr,area:{},fita:{}};
+    for(const pc of r.pecas){it.area[pc.mat]=(it.area[pc.mat]||0)+pc.c*pc.l/1e6;const fm=((pc.fita[0]+pc.fita[1])*pc.c+(pc.fita[2]+pc.fita[3])*pc.l)/1000;if(fm)it.fita[pc.mat]=(it.fita[pc.mat]||0)+fm;todas.push(pc)}
+    itens.push(it)}
   if(!itens.length)throw new Error('Nenhum móvel com largura, altura e profundidade');
   const [SW,SH,REF,K]=PRECOS.chapa||[2740,1840,10,4],mats={};let cortes=0;const porMat={};
   for(const pc of todas)(porMat[pc.mat]=porMat[pc.mat]||[]).push(pc);
@@ -1319,13 +1334,13 @@ function telaOrc(){
     <div><span class="meta">Entrada ${prm.entrada_pct||0}%</span><b>${R$(o.entrada)}</b></div>
   </div>
   <div class="bar"><h3>Móveis</h3><span class="meta">${o.nPecas} peças · ${o.cortes} cortes · ${Object.values(o.mats).reduce((s,m)=>s+m.chapas,0)} chapas</span></div>
-  <div class="itens">${o.itens.map(it=>`<div class="item" style="--c:${corMovel(it.m)}">
+  <div class="itens">${o.itens.map(it=>`<div class="item" style="--c:${it.av?(AVULSAS[it.m.k]||AVULSAS.painel).cor:corMovel(it.m)}">
     <div class="bar"><b>${esc(it.desc)}</b><b>${R$(it.cliente)}</b></div>
     <span class="meta">${esc(it.amb)} · ${it.m.larg} × ${it.m.alt} × ${it.m.prof} · custo ${R$(it.custo)} (MDF ${R$(it.mdf)}, fita ${R$(it.fitaC)}, ferragens ${R$(it.ferrC)}, cortes ${R$(it.corteC)})</span>
-    <div class="ig">
+    ${it.av?`<div class="ig"><div><label>Material</label><select data-o="mcor" data-id="${it.m.id}" data-f="mat">${[...materiaisFrente,...materiaisCaixa].map(p=>`<option${(it.m.mat||matPadrao('Frente'))===p.nome?' selected':''}>${esc(p.nome)}</option>`).join('')}</select></div></div>`:`<div class="ig">
       <div><label>Cor da caixa</label><select data-o="mcor" data-id="${it.m.id}" data-f="matCaixa">${materiaisCaixa.map(p=>`<option${(it.m.matCaixa||matPadrao('Caixa'))===p.nome?' selected':''}>${esc(p.nome)}</option>`).join('')}</select></div>
       <div><label>Cor da frente</label><select data-o="mcor" data-id="${it.m.id}" data-f="matFrente">${materiaisFrente.map(p=>`<option${(it.m.matFrente||matPadrao('Frente'))===p.nome?' selected':''}>${esc(p.nome)}</option>`).join('')}</select></div>
-    </div>
+    </div>`}
     <details><summary>Peças (${it.pecas.length}) e ferragens</summary>
       <div class="wrap"><table class="tb"><tr><th>Peça</th><th>Comp.</th><th>Larg.</th><th>Material</th><th>Fita</th></tr>${it.pecas.map(pc=>`<tr><td>${pc.d}</td><td>${pc.c}</td><td>${pc.l}</td><td>${esc(pc.mat)}</td><td>${pc.fita.join('')}</td></tr>`).join('')}</table></div>
       <div class="wrap"><table class="tb"><tr><th>Ferragem</th><th>Qtd</th><th>Unit.</th></tr>${Object.entries(it.ferr).map(([n,q])=>`<tr><td>${esc(n)}</td><td>${+q.toFixed(2)}</td><td>${R$(precoDe(n))}</td></tr>`).join('')}</table></div>
@@ -1605,7 +1620,7 @@ function elevSVGreal(a,wid){const i=a.paredes.findIndex(w=>w.id===wid);if(i<0)re
   const zs=new Set([0,H]);movs.forEach(({m})=>{zs.add(+m.z||0);zs.add((+m.z||0)+(+m.alt))});const zl=[...zs].map(Math.round).filter(z=>z>=0&&z<=H).sort((p,q)=>p-q);
   for(let k=0;k<zl.length-1;k++)if(zl[k+1]-zl[k]>=1)s+=cotaV(zl[k],zl[k+1],L+pad*.75,Math.round(zl[k+1]-zl[k]));
   s+=`<text x="0" y="${-H-fs*4.3}" font-size="${fs*.6}" fill="#66716b">◀ ${LETRAS[(i-1+a.paredes.length)%a.paredes.length]||''}</text><text x="${L}" y="${-H-fs*4.3}" font-size="${fs*.6}" text-anchor="end" fill="#66716b">${LETRAS[(i+1)%a.paredes.length]||''} ▶</text>`;
-  s+=cotasInternasElev(a,wid,L,H,fs,true);
+  s+=extrasElev(a,wid,fs,true);s+=cotasInternasElev(a,wid,L,H,fs,true);
   return s+'</svg>'}
 
 
@@ -1618,6 +1633,7 @@ function cena3D(a){const g=geo(a),H=PE(a),faces=[],caixas=[],pontos=[];
     faces.push({w,i,L:w.L,H,abs,viga:its.filter(x=>x.tipo==='viga').map(x=>aberturaDim(x,H))})});
   (a.moveis||[]).forEach((m,mi)=>{const i=a.paredes.findIndex(w=>w.id===m.parede);if(i<0||!m.larg||!m.alt||!m.prof)return;
     caixas.push({w:g.ws[i],u0:+m.dist||0,u1:(+m.dist||0)+(+m.larg),n:+m.prof,z0:+m.z||0,z1:(+m.z||0)+(+m.alt),cor:corMovel(m),m,num:mi+1})});
+  g.ws.forEach((w,i)=>blocosExtras(a,a.paredes[i].id).forEach(b=>caixas.push({w,u0:b.u0,u1:b.u1,n:b.n1,z0:b.z0,z1:b.z1,cor:b.cS,m:null,tampo:b.t==='tampo'})));
   return {g,H,faces,caixas,pontos}}
 
 // ---------------- 3D: paredes com espessura, móveis com peças, portas e janelas modeladas
@@ -1687,8 +1703,12 @@ function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBo
   longe.forEach(p=>{desenhaParede(p,false);desenhaAberturas(p)});
   // móveis: peças de verdade (laterais, base, topo, fundo, prateleiras, portas, gavetas, rodapé, puxadores)
   const mov=(A.moveis||[]).map((m,mi)=>{const i=A.paredes.findIndex(w=>w.id===m.parede);if(i<0||!m.larg||!m.alt||!m.prof)return null;const w=g.ws[i],u0=+m.dist||0,u1=u0+(+m.larg),z0=+m.z||0,pr=+m.prof;
-    return {m,mi,w,u0,u1,z0,pr,d:prof(w,u0,u1,0,pr,z0,z0+(+m.alt))}}).filter(Boolean).sort((a,b)=>b.d-a.d);
-  for(const x of mov){const {m,w,u0,u1,z0,pr}=x,f=paineisFrente(m),{cx:cc,fr}=coresMovel(m),e=15,ft=18,nf=f.pan.length?pr-ft:pr,zb0=z0+f.rod,zb1=z0+(+m.alt),P=[];
+    return {m,mi,w,u0,u1,z0,pr,d:prof(w,u0,u1,0,pr,z0,z0+(+m.alt))}}).filter(Boolean);
+  const exs=[];g.ws.forEach((w,i)=>blocosExtras(A,A.paredes[i].id).forEach(b=>{let d=prof(w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1);
+    if(b.t==='tampo'){const sob=mov.filter(x=>x.w===w&&x.z0+(+x.m.alt)<=b.z0+5&&x.u1>b.u0&&x.u0<b.u1);if(sob.length)d=Math.min(...sob.map(x=>x.d))-1}exs.push({ex:b,w,d})}));
+  for(const x of [...mov,...exs].sort((a,b)=>b.d-a.d)){if(x.ex){const b=x.ex;caixa(x.w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1,b.cR,{lw:.8});
+      if(b.t==='tampo'&&b.eng){const q1=prj(P3(x.w,b.u0,b.n1+1,b.z0+b.e)),q2=prj(P3(x.w,b.u1,b.n1+1,b.z0+b.e));ctx.beginPath();ctx.moveTo(q1[0],q1[1]);ctx.lineTo(q2[0],q2[1]);ctx.strokeStyle='rgba(40,40,40,.35)';ctx.lineWidth=.7*dpr;ctx.stroke()}continue}
+    const {m,w,u0,u1,z0,pr}=x,f=paineisFrente(m),{cx:cc,fr}=coresMovel(m),e=15,ft=18,nf=f.pan.length?pr-ft:pr,zb0=z0+f.rod,zb1=z0+(+m.alt),P=[];
     if(f.rod)P.push([u0+20,u1-20,0,nf-50,z0,zb0,'#3b3d40']);
     P.push([u0,u0+e,0,nf,zb0,zb1,cc],[u1-e,u1,0,nf,zb0,zb1,cc],[u0+e,u1-e,0,nf,zb0,zb0+e,cc],[u0+e,u1-e,0,nf,zb1-e,zb1,cc],[u0+e,u1-e,0,6,zb0+e,zb1-e,mistura(cc,'#000000',.12)]);
     const k=+m.prats||0;for(let j=1;j<=k;j++){const zz=zb0+(zb1-zb0)*j/(k+1);P.push([u0+e,u1-e,6,nf-20,zz,zz+e,cc])}
@@ -1731,7 +1751,7 @@ function planSVGsimples(a,g,opt={}){
     }else{const cx=w.ax+w.ux*d+w.ix*fs*.75,cy=-(w.ay+w.uy*d+w.iy*fs*.75);
       s+=`<circle cx="${cx}" cy="${cy}" r="${fs*.45}" fill="${t.cor}"/><text x="${cx}" y="${cy}" font-size="${fs*.55}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-weight="700">${esc(t.n[0])}</text>`;}
   });
-  s+=cotasInternasPlanta(a,g,fs,0,false);
+  s+=extrasPlanta(a,g,fs,false);s+=cotasInternasPlanta(a,g,fs,0,false);
   return s+'</svg>';
 }
 
@@ -1767,7 +1787,7 @@ function elevSVGsimples(a,wid){const i=a.paredes.findIndex(w=>w.id===wid);if(i<0
   s+=`<text x="${L/2}" y="${cyp+fs*1.1}" font-size="${fs}" text-anchor="middle" style="fill:${w.L?'var(--fg)':'var(--warn)'}" font-weight="800">Parede ${LETRAS[i]} · ${w.L?Math.round(L):'? (sem medida)'}</text>`;
   const cx=-pad*.7;s+=`<line x1="${cx}" y1="0" x2="${cx}" y2="${-H}" style="stroke:var(--fg)" vector-effect="non-scaling-stroke"/><text x="${cx-fs*.4}" y="${-H/2}" font-size="${fs*.8}" text-anchor="middle" transform="rotate(-90 ${cx-fs*.4} ${-H/2})" style="fill:${a.peDireito?'var(--fg)':'var(--warn)'}" font-weight="700">PD ${a.peDireito||'?'}</text>`;
   s+=`<text x="0" y="${-H-fs*.5}" font-size="${fs*.65}" style="fill:var(--muted)">◀ ${LETRAS[(i-1+a.paredes.length)%a.paredes.length]||''}</text><text x="${L}" y="${-H-fs*.5}" font-size="${fs*.65}" text-anchor="end" style="fill:var(--muted)">${LETRAS[(i+1)%a.paredes.length]||''} ▶</text>`;
-  s+=cotasInternasElev(a,wid,L,H,fs,false);
+  s+=extrasElev(a,wid,fs,false);s+=cotasInternasElev(a,wid,L,H,fs,false);
   return s+'</svg>'}
 
 
@@ -1807,8 +1827,9 @@ function desenhar3Dsimples(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.ge
     f.viga.forEach(o=>poly([P3(w,o.u0,0,o.z0),P3(w,o.u1,0,o.z0),P3(w,o.u1,0,o.z1),P3(w,o.u0,0,o.z1)],TIPOS.viga.cor,TIPOS.viga.cor,1,.35));
     const q=prj(P3(w,w.L/2,0,H+120));ctx.fillStyle=muted;ctx.font=`700 ${13*dpr}px system-ui`;ctx.textAlign='center';ctx.fillText(LETRAS[f.i],q[0],q[1])}
   // móveis: caixas da mais longe para a mais perto
-  const cs=S.caixas.map(c=>({c,d:prj(P3(c.w,(c.u0+c.u1)/2,c.n/2,(c.z0+c.z1)/2))[2]})).sort((a,b)=>b.d-a.d);
-  for(const {c} of cs){const w=c.w,Q=(u,n,z)=>P3(w,u,n,z),{u0,u1,n,z0,z1}=c;
+  const cs=S.caixas.map(c=>({c,d:prj(P3(c.w,(c.u0+c.u1)/2,c.n/2,(c.z0+c.z1)/2))[2]}));
+  cs.forEach(x=>{if(x.c.tampo){const sob=cs.filter(y=>y.c.m&&y.c.w===x.c.w&&y.c.z1<=x.c.z0+5&&y.c.u1>x.c.u0&&y.c.u0<x.c.u1);if(sob.length)x.d=Math.min(...sob.map(y=>y.d))-1}});cs.sort((a,b)=>b.d-a.d);
+  for(const {c} of cs){const w=c.w,Q=(u,n,z)=>P3(w,u,n,z),{u0,u1,n,z0,z1}=c;if(!c.m&&c.n0){/* bloco que não encosta na parede */}
     const fcs=[
       {p:[Q(u0,n,z0),Q(u1,n,z0),Q(u1,n,z1),Q(u0,n,z1)],nv:[w.ix,w.iy,0],sh:1,frente:1},
       {p:[Q(u0,0,z1),Q(u1,0,z1),Q(u1,n,z1),Q(u0,n,z1)],nv:[0,0,1],sh:1.25},
@@ -1817,7 +1838,7 @@ function desenhar3Dsimples(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.ge
       {p:[Q(u1,0,z0),Q(u1,n,z0),Q(u1,n,z1),Q(u1,0,z1)],nv:[w.ux,w.uy,0],sh:.8}];
     for(const f of fcs){const ctr=f.p.reduce((s,p)=>[s[0]+p[0]/4,s[1]+p[1]/4,s[2]+p[2]/4],[0,0,0]);if(!vis(...f.nv,ctr))continue;
       poly(f.p,panel,null,0);poly(f.p,c.cor,c.cor,1.4,f.sh>1?.38:f.sh<1?.62:.3);
-      if(f.frente){const fr=frenteMovel(c.m);fr.linhas.forEach(([a1,b1,a2,b2])=>seg(Q(u0+a1,n+1,z0+b1),Q(u0+a2,n+1,z0+b2),c.cor,1.4));
+      if(f.frente&&c.m){const fr=frenteMovel(c.m);fr.linhas.forEach(([a1,b1,a2,b2])=>seg(Q(u0+a1,n+1,z0+b1),Q(u0+a2,n+1,z0+b2),c.cor,1.4));
         fr.puxs.forEach(([x,z])=>seg(Q(u0+x-35,n+2,z0+z),Q(u0+x+35,n+2,z0+z),c.cor,3));
         const q=prj(Q((u0+u1)/2,n,(z0+z1)/2));ctx.fillStyle=c.cor;ctx.font=`800 ${12*dpr}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('M'+c.num,q[0],q[1]);ctx.textBaseline='alphabetic'}}}
   // pontos (tomadas, água...) por cima de tudo, para ver o que fica atrás dos móveis
@@ -1923,8 +1944,83 @@ function cotasInternasPlanta(a,g,fs,T,real){const fg=real?'#30353a':'var(--fg)';
       if(um.length>2)s+=cad(um,off-(u.length>2?fs*1.2:0),real?'#2e7d32':'#3f9a52')}});
   return s}
 
+/* ================= PEÇAS AVULSAS (tampo engrossado, painel) e TAMPONAMENTOS nas vistas ================= */
+const AVULSAS={tampo:{n:'Tampo engrossado (30 mm)',cor:'#8d6e63'},painel:{n:'Painel / peça avulsa',cor:'#607d8b'}};
+const NOME_FITA35=()=>acharInsumo('fita','35')||'Fita de Borda 35 mm (metro)';
+const fitasV=v=>[0,1,2,3].map(i=>v['f'+i]===false?0:1);
+function novaAvulsa(k,wid){const mv=(A.moveis||[]).filter(m=>m.parede===wid&&!ehAereo(m)&&m.larg&&(+m.alt||0)<=1200);
+  if(k==='tampo'){const v={id:uid(),k,parede:wid,dist:0,comp:1200,prof:620,z:870,esp:15,faixa:70,eng:true,mat:'',nome:''};
+    if(mv.length){const d0=Math.min(...mv.map(m=>+m.dist||0)),d1=Math.max(...mv.map(m=>(+m.dist||0)+(+m.larg)));
+      Object.assign(v,{dist:d0,comp:d1-d0,prof:Math.max(...mv.map(m=>+m.prof||0))+38,z:Math.max(...mv.map(m=>(+m.z||0)+(+m.alt||0)))})}
+    return v}
+  return {id:uid(),k:'painel',parede:wid,dist:0,larg:600,alt:1000,esp:18,z:0,mat:'',nome:''}}
+function avulsaHTML(v,idx){const t=AVULSAS[v.k]||AVULSAS.painel,k='v:'+v.id+':',ch=PRECOS?[...chapasDe('Frente'),...chapasDe('Caixa')]:[];
+  const sel=ch.length?`<div><label>Material</label><select data-o="v" data-id="${v.id}" data-f="mat"><option value="">Padrão da frente</option>${ch.map(p=>`<option${v.mat===p.nome?' selected':''}>${esc(p.nome)}</option>`).join('')}</select></div>`:'';
+  return `<div class="item" style="--c:${t.cor}">
+  <div class="ih ihm"><span class="num" style="background:${t.cor}">${v.k==='tampo'?'T':'P'}${idx+1}</span>
+    <b style="align-self:center">${t.n}</b>
+    <select aria-label="Parede" data-o="v" data-id="${v.id}" data-f="parede" data-full="1">${A.paredes.map((w,i)=>`<option value="${w.id}"${w.id===v.parede?' selected':''}>Parede ${LETRAS[i]}</option>`).join('')}</select>
+    <button class="ic" data-a="delV" data-id="${v.id}" aria-label="Apagar peça">✕</button></div>
+  ${v.k==='tampo'?`<div class="ig">
+    <div><label>Dist. do início</label>${inp('v','dist',v.dist,k+'dist',v.id)}</div>
+    <div><label>Comprimento</label>${inp('v','comp',v.comp,k+'comp',v.id)}</div>
+    <div><label>Profundidade</label>${inp('v','prof',v.prof,k+'prof',v.id)}</div>
+    <div><label>Altura do chão</label>${inp('v','z',v.z,k+'z',v.id)}</div>
+    <div><label>Chapa (mm)</label>${inp('v','esp',v.esp,k+'esp',v.id)}</div>
+    <div><label>Faixa engrossado</label>${inp('v','faixa',v.faixa,k+'faixa',v.id)}</div></div>
+  <div class="row wrap"><label class="chk"><input type="checkbox" data-o="v" data-id="${v.id}" data-f="eng" data-t="b"${v.eng!==false?' checked':''} data-full="1"> Engrossado (borda de ${v.eng!==false?2*(+v.esp||15):(+v.esp||15)} mm)</label>
+    <span class="meta">Fita ${v.eng!==false?'35 mm':'comum'} em:</span>${['Frente','Trás','Esquerda','Direita'].map((n,i)=>`<label class="chk"><input type="checkbox" data-o="v" data-id="${v.id}" data-f="f${i}" data-t="b"${v['f'+i]!==false?' checked':''}> ${n}</label>`).join('')}</div>
+  <div class="row wrap"><button data-a="tampoMoveis" data-id="${v.id}">Pegar medidas dos balcões da parede</button></div>`
+  :`<div class="ig">
+    <div><label>Dist. do início</label>${inp('v','dist',v.dist,k+'dist',v.id)}</div>
+    <div><label>Largura</label>${inp('v','larg',v.larg,k+'larg',v.id)}</div>
+    <div><label>Altura</label>${inp('v','alt',v.alt,k+'alt',v.id)}</div>
+    <div><label>Altura do chão</label>${inp('v','z',v.z,k+'z',v.id)}</div>
+    <div><label>Espessura</label>${inp('v','esp',v.esp,k+'esp',v.id)}</div></div>`}
+  <div class="ig">${sel}<div><label>Nome</label><input data-o="v" data-id="${v.id}" data-f="nome" value="${esc(v.nome)}" placeholder="${v.k==='tampo'?'Ex.: tampo da pia':'Ex.: painel da TV'}"></div></div></div>`}
+
+// peças e insumos de uma peça avulsa (mesmas regras do marcenaria_pecas do FreeCAD)
+function pecasAvulsa(v){const out=[],ferr={},mat=v.mat||matPadrao('Frente'),F0=[0,0,0,0];
+  const add=(d,c,l,esp,fita)=>out.push({d,papel:'Frente',mat,c:Math.round(c),l:Math.round(l),esp,fita,alt:esp,veio:!!pdv('veio_frente',0)});
+  if(v.k==='tampo'){const C=+v.comp||0,Pf=+v.prof||0,e=+v.esp||15,fx=+v.faixa||70,fl=fitasV(v);
+    const util=((PRECOS&&PRECOS.chapa)||[2740])[0]-20,np=Math.max(1,Math.ceil(C/util)),cp=C/np;
+    if(v.eng!==false){for(let k=0;k<np;k++){add(np>1?`Tampo (parte ${k+1}/${np})`:'Tampo',cp,Pf,e,F0);add('Engrossado tampo',cp,fx,e,F0);add('Engrossado tampo',cp,fx,e,F0)}add('Engrossado tampo',Pf-2*fx,fx,e,F0);add('Engrossado tampo',Pf-2*fx,fx,e,F0);
+      const m=(fl[0]*C+fl[1]*C+fl[2]*Pf+fl[3]*Pf)/1000;if(m)ferr[NOME_FITA35()]=Math.round(m*100)/100}
+    else for(let k=0;k<np;k++)add(np>1?`Tampo (parte ${k+1}/${np})`:'Tampo',cp,Pf,e,[fl[0],fl[1],k===0?fl[2]:0,k===np-1?fl[3]:0])}
+  else add('Painel',+v.alt||0,+v.larg||0,+v.esp||18,[1,1,1,1]);
+  return {pecas:out.filter(p=>p.c>0&&p.l>0),ferr}}
+function nomeAvulsa(v){return v.k==='tampo'?`${v.nome?v.nome+' - ':''}tampo ${v.eng!==false?'engrossado '+2*(+v.esp||15)+' mm':(+v.esp||15)+' mm'} ${v.comp} × ${v.prof}`:`${v.nome?v.nome+' - ':''}painel ${v.alt} × ${v.larg} × ${v.esp}`}
+
+// blocos extras de cada parede para as vistas: tamponamentos dos móveis e peças avulsas
+function blocosExtras(a,wid){const L=[],fr=18,mt=2;
+  (a.moveis||[]).forEach(m=>{if(m.parede!==wid||!m.larg||!m.alt||!m.prof)return;const u0=+m.dist||0,u1=u0+(+m.larg),z0=+m.z||0,Ht=+m.alt,b=+m.base||0,ae=ehAereo(m);
+    const R=ae?0:(b===1||b===4?100:b>1?70:0),zb=(ae||[0,1,4].includes(b))?z0:z0+R,n1=(+m.prof)+fr+mt,cS=mistura(corMovel(m),'#000000',.15),cR=coresMovel(m).fr;
+    const E=+m.tamp_esq?1:0,D=+m.tamp_dir?1:0;
+    if(E)L.push({u0:u0-fr,u1:u0,n0:0,n1,z0:zb,z1:z0+Ht,cS,cR,t:'tamp'});
+    if(D)L.push({u0:u1,u1:u1+fr,n0:0,n1,z0:zb,z1:z0+Ht,cS,cR,t:'tamp'});
+    if(+m.tamp_topo)L.push({u0:u0-E*fr,u1:u1+D*fr,n0:0,n1,z0:z0+Ht,z1:z0+Ht+fr,cS,cR,t:'tamp'});
+    if(+m.tamp_base)L.push({u0:u0-E*fr,u1:u1+D*fr,n0:0,n1,z0:z0-fr,z1:z0,cS,cR,t:'tamp'})});
+  (a.avulsas||[]).forEach((v,i)=>{if(v.parede!==wid)return;const t=AVULSAS[v.k]||AVULSAS.painel,cR=corMaterial(v.mat||(PRECOS?matPadrao('Frente'):''),'Frente');
+    if(v.k==='tampo'){const e=+v.esp||15,h=v.eng!==false?2*e:e;L.push({u0:+v.dist||0,u1:(+v.dist||0)+(+v.comp||0),n0:0,n1:+v.prof||0,z0:+v.z||0,z1:(+v.z||0)+h,cS:t.cor,cR,t:'tampo',rot:'T'+(i+1),eng:v.eng!==false,fx:+v.faixa||70,e})}
+    else L.push({u0:+v.dist||0,u1:(+v.dist||0)+(+v.larg||0),n0:0,n1:+v.esp||18,z0:+v.z||0,z1:(+v.z||0)+(+v.alt||0),cS:t.cor,cR,t:'painel',rot:'P'+(i+1)})});
+  return L}
+// planta: contorno dos tamponamentos e das peças avulsas
+function extrasPlanta(a,g,fs,real){let s='';
+  g.ws.forEach((w,i)=>blocosExtras(a,a.paredes[i].id).forEach(b=>{const P=(u,n)=>[(w.ax+w.ux*u+w.ix*n).toFixed(1),(-(w.ay+w.uy*u+w.iy*n)).toFixed(1)].join(',');
+    const cor=real?(b.t==='tamp'?'#3a3d42':b.t==='tampo'?'#6d5a48':'#455a64'):b.cS;
+    s+=`<polygon points="${P(b.u0,b.n0)} ${P(b.u1,b.n0)} ${P(b.u1,b.n1)} ${P(b.u0,b.n1)}" style="fill:${b.t==='tamp'?cor:'none'};fill-opacity:${b.t==='tamp'?.55:0};stroke:${cor};stroke-width:${b.t==='tamp'?1:2}px;${b.t==='tampo'?'stroke-dasharray:10 4 2 4;':''}" vector-effect="non-scaling-stroke"/>`;
+    if(b.rot){const [mx,my]=P((b.u0+b.u1)/2,b.n1-fs*.45).split(',');s+=`<text x="${mx}" y="${my}" font-size="${fs*.5}" text-anchor="middle" dominant-baseline="middle" style="fill:${cor};font-weight:700">${b.rot} · ${Math.round(b.u1-b.u0)}</text>`}}));
+  return s}
+// elevação: tamponamentos e peças avulsas de frente
+function extrasElev(a,wid,fs,real){let s='';const Y=z=>-z;
+  blocosExtras(a,wid).forEach(b=>{const cor=real?b.cR:b.cS,lw=b.u1-b.u0,h=b.z1-b.z0;
+    s+=`<rect x="${b.u0}" y="${Y(b.z1)}" width="${lw}" height="${h}" style="fill:${cor};fill-opacity:${real?1:.45};stroke:${real?'#2a2e33':b.cS}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`;
+    if(b.t==='tampo'&&b.eng)s+=`<line x1="${b.u0}" y1="${Y(b.z0+b.e)}" x2="${b.u1}" y2="${Y(b.z0+b.e)}" style="stroke:${real?'#2a2e33':b.cS}" stroke-width=".6" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;
+    if(b.rot)s+=`<text x="${b.u0+lw/2}" y="${b.t==='tampo'?Y(b.z1)-fs*.35:Y(b.z0+h/2)}" font-size="${fs*.55}" text-anchor="middle" dominant-baseline="${b.t==='tampo'?'auto':'central'}" style="fill:${real?'#3a2e22':b.cS}" font-weight="700">${b.rot} · ${Math.round(lw)}${b.t==='tampo'?' × '+Math.round(b.n1)+' · '+Math.round(h)+' mm':''}</text>`});
+  return s}
+
 /* ================= eventos ================= */
-function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id)}
+function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id);if(o==='v')return (A.avulsas||[]).find(v=>v.id===id)}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-a]');
   if(!e.target.closest('#menu')&&!e.target.closest('#menuBtn'))$('#menu').hidden=true;
@@ -1947,11 +2043,19 @@ document.addEventListener('click',async e=>{
     case 'addM':{if(!A.paredes.length){toast('Adicione uma parede primeiro');return}
       const w=selW||A.paredes[0].id,pr=MOVEIS[f];if(!A.moveis)A.moveis=[];
       const mesmo=A.moveis.filter(x=>x.parede===w&&ehAereo(x)===ehAereo(pr));
-      const dist=mesmo.reduce((mx,x)=>Math.max(mx,(+x.dist||0)+(+x.larg||0)),0);
+      const dist=mesmo.reduce((mx,x)=>Math.max(mx,(+x.dist||0)+(+x.larg||0)+(+x.tamp_dir?18:0)),0);
       const m={id:uid(),k:f,tipo:pr.tipo,parede:w,dist,larg:pr.larg,alt:pr.alt,prof:pr.prof,z:pr.z,portas:pr.portas,gavetas:pr.gavetas,prats:pr.prats,base:pr.base,nome:''};
       A.moveis.push(m);salvar();alvoKey='m:'+m.id+':larg';render();
       const el=document.querySelector(`[data-k="${CSS.escape(alvoKey)}"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
       toast(`${pr.n} na parede ${letra(w)}, a ${dist} mm do início`);break;}
+    case 'addV':{if(!A.paredes.length){toast('Adicione uma parede primeiro');return}if(!A.avulsas)A.avulsas=[];
+      const v=novaAvulsa(f,selW||A.paredes[0].id);A.avulsas.push(v);salvar();render();
+      const el=document.querySelector(`[data-k="v:${v.id}:comp"],[data-k="v:${v.id}:larg"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
+      toast(f==='tampo'?`Tampo ${v.comp} × ${v.prof} na parede ${letra(v.parede)}`:'Painel na parede '+letra(v.parede));break;}
+    case 'delV':if(!dupla(b))return;A.avulsas=(A.avulsas||[]).filter(v=>v.id!==id);salvar();render();break;
+    case 'tampoMoveis':{const v=(A.avulsas||[]).find(x=>x.id===id);if(!v)return;const n=novaAvulsa('tampo',v.parede);
+      if(!(A.moveis||[]).some(m=>m.parede===v.parede&&!ehAereo(m)&&(+m.alt||0)<=1200)){toast('Não há balcões nessa parede');return}
+      Object.assign(v,{dist:n.dist,comp:n.comp,prof:n.prof,z:n.z});salvar();render();toast(`Tampo ${v.comp} × ${v.prof}, a ${v.dist} mm do início`);break;}
     case 'delM':if(!dupla(b))return;A.moveis=(A.moveis||[]).filter(m=>m.id!==id);salvar();render();break;
     case 'delI':if(!dupla(b))return;{const it=A.itens.find(i=>i.id===id);if(it)for(const fo of it.fotos)dbDel('fotos',fo).catch(()=>{});}
       A.itens=A.itens.filter(i=>i.id!==id);salvar();render();break;
@@ -2005,7 +2109,7 @@ document.addEventListener('change',async e=>{
       obj.dist=Math.round(w.L-v-larg);salvar();const di=document.querySelector(`input[data-o="${o}"][data-id="${obj.id}"][data-f="dist"]`);if(di)di.value=obj.dist;parcial();toast('Distância do início: '+obj.dist+' mm')}return}
   if(el.id==='precoFile'){await importarPrecos(el.files[0]);el.value='';return}
   if(el.dataset.o==='orc'){if(!P.orc)P.orc={params:{},extras:[]};const v=el.value.trim();if(v==='')delete P.orc.params[el.dataset.f];else P.orc.params[el.dataset.f]=num(v);salvar();render();return}
-  if(el.dataset.o==='mcor'){const m=P.ambientes.flatMap(a=>a.moveis||[]).find(x=>x.id===el.dataset.id);if(m){m[el.dataset.f]=el.value;salvar();render()}return}
+  if(el.dataset.o==='mcor'){const m=P.ambientes.flatMap(a=>[...(a.moveis||[]),...(a.avulsas||[])]).find(x=>x.id===el.dataset.id);if(m){m[el.dataset.f]=el.value;salvar();render()}return}
   if(el.dataset.fotoO){const files=[...el.files];el.value='';
     const dono=el.dataset.fotoO==='a'?A:el.dataset.fotoO==='w'?A.paredes.find(w=>w.id===el.dataset.id):A.itens.find(i=>i.id===el.dataset.id);if(!dono)return;if(!dono.fotos)dono.fotos=[];
     let ultId=null;for(const file of files){try{const blob=await comprimir(file),id=uid();await dbPut('fotos',{id,blob});dono.fotos.push(id);ultId=id}catch(err){toast('Não consegui salvar a foto: '+err.message,4000)}}
