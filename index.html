@@ -82,6 +82,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,.btn:focus-within{
 .pend.bk{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .pend ul{margin:6px 0 0;padding-left:20px}
 .dica{margin:0;color:var(--muted);font-size:.88rem}
+.orc-tot{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.orc-tot>div{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+.orc-tot>div b{font-size:1.15rem}.orc-tot>div.big{border-color:var(--ok);border-width:2px}.orc-tot>div.big b{font-size:1.45rem}
+.wrap{overflow-x:auto;max-width:100%}
+.tb{border-collapse:collapse;width:100%;font-size:.88rem}.tb th,.tb td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;white-space:nowrap}.tb th{color:var(--muted);font-weight:600}
+details summary{cursor:pointer;font-weight:600;padding:4px 0}
 .walls{display:flex;flex-direction:column;gap:8px}
 .wrow{display:grid;grid-template-columns:36px minmax(0,1fr) 88px 60px 40px;gap:8px;align-items:end;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel)}
 .wrow.sel{border-color:var(--laser)}
@@ -143,11 +149,13 @@ pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;backgrou
 <div id="menu" class="menu" hidden>
   <button data-a="mTodos">Procurar todos os aparelhos</button>
   <button data-a="mDesc">Desconectar trena</button>
+  <button data-a="carregarPrecos">Carregar preços (do FreeCAD)</button>
   <button data-a="mAjuda">Como usar e exportar</button>
   <button data-a="mDiag">Diagnóstico do Bluetooth</button>
 </div>
 <main id="main"></main>
 <input type="file" id="impFile" accept=".json,.txt,application/json,text/plain" hidden>
+<input type="file" id="precoFile" accept=".json,.txt,application/json,text/plain" hidden>
 <div id="fab" class="fab" hidden>
   <button id="fabLaser" type="button">Ligar laser (mirar)</button>
   <button id="fabMedir" type="button" class="fabm">MEDIR</button>
@@ -219,8 +227,8 @@ const TIPOS={
 
 /* ================= banco local (IndexedDB) ================= */
 let db;
-function abrirDB(){return new Promise((res,rej)=>{const r=indexedDB.open('medidor',1);
-  r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('projetos',{keyPath:'id'});d.createObjectStore('fotos',{keyPath:'id'})};
+function abrirDB(){return new Promise((res,rej)=>{const r=indexedDB.open('medidor',2);
+  r.onupgradeneeded=()=>{const d=r.result;for(const n of ['projetos','fotos','config'])if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:'id'})};
   r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error)})}
 function tx(store,mode,fn){return new Promise((res,rej)=>{const t=db.transaction(store,mode);const r=fn(t.objectStore(store));t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)})}
 const dbAll=s=>tx(s,'readonly',st=>st.getAll());
@@ -314,6 +322,7 @@ function render(){
   else if(view==='amb')m.innerHTML=telaAmb();
   else if(view==='diag')m.innerHTML=telaDiag();
   else if(view==='ajuda')m.innerHTML=telaAjuda();
+  else if(view==='orc')m.innerHTML=telaOrc();
   carregarThumbs();marcarAlvo();guardarNav();
 }
 
@@ -346,6 +355,7 @@ function telaProjeto(){
     <button data-a="novoAmb" data-f="1">Parede única</button></div>
   <div class="bar"><h2>Exportar</h2></div>
   <div class="exp">
+    <button data-a="abrirOrc" style="border-color:var(--ok)"><b>💰 Orçamento, cores e corte</b><span>Preço ao cliente, chapas, ferragens, Excel e lista Leo</span></button>
     <button data-a="exp" data-f="dxf"><b>DXF (CAD)</b><span>AutoCAD, SketchUp, Revit e FreeCAD: planta 2D e paredes 3D</span></button>
     <button data-a="exp" data-f="zip"><b>Pacote completo (.zip)</b><span>DXF, macro, relatório, planilha e fotos separadas por parede</span></button>
     <button data-a="exp" data-f="fc"><b>Macro FreeCAD</b><span>Paredes 3D com vãos, pontos, notas e fotos, uma pasta por parede</span></button>
@@ -406,6 +416,8 @@ function movelHTML(m){const k='m:'+m.id+':';
     <div><label>Prateleiras</label><select data-o="m" data-id="${m.id}" data-f="prats" data-t="n">${[0,1,2,3,4,5,6].map(v=>`<option${+m.prats===v?' selected':''}>${v}</option>`).join('')}</select></div>
     <div><label>Base</label><select data-o="m" data-id="${m.id}" data-f="base" data-t="n">${BASES.map((b,i)=>`<option value="${i}"${+m.base===i?' selected':''}>${b}</option>`).join('')}</select></div>
   </div>
+  <div class="row wrap"><label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_esq" data-t="b"${m.tamp_esq?' checked':''}> Tamponamento esquerdo</label>
+    <label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_dir" data-t="b"${m.tamp_dir?' checked':''}> Tamponamento direito</label></div>
   <input aria-label="Nome" data-o="m" data-id="${m.id}" data-f="nome" value="${esc(m.nome)}" placeholder="Nome (ex.: gabinete pia)">
   </div>`}
 function difTxt(m,c){if(!c||!m)return '';const d=Math.round(m-c);return `${Math.abs(d)<=5?'✓ no esquadro':'⚠ fora de esquadro'} · calculada ${Math.round(c)} · dif. ${d>0?'+':''}${d} mm`}
@@ -1081,6 +1093,259 @@ async function backupOneDrive(btn){
 // ao sair de um ambiente com mudanças, lembra do backup
 let avisouBk=0;function lembrarBk(){if(pendBk(P)&&Date.now()-avisouBk>10*60000){avisouBk=Date.now();setTimeout(()=>toast('☁ Lembrete: faça o backup no OneDrive (botão no topo do projeto)',4000),300)}}
 
+/* ================= ORÇAMENTO NO TABLET =================
+   Mesmas regras da bancada do FreeCAD (marcenaria_core._construir_pecas_base), do Orçamento
+   (calcular_itens / Custos / Orçamento Cliente) e do Plano de Corte (otimizar).
+   Preços: arquivo precos_tablet.txt gerado pelo botão "Enviar preços para o tablet". */
+let PRECOS=null;
+async function carregarPrecosSalvos(){try{const r=await dbGet('config','precos');if(r)PRECOS=r.dados}catch(e){}}
+async function importarPrecos(file){if(!file)return;
+  try{const d=JSON.parse(await file.text());if(d.app!=='medidor-glm-precos')throw new Error('não é o arquivo de preços da bancada');
+    PRECOS=d;await dbPut('config',{id:'precos',dados:d});render();toast(`Preços carregados (${d.gerado}): ${d.precos.length} itens`,3500)}
+  catch(e){toast('Não consegui carregar os preços: '+e.message,4500)}}
+
+const pdv=(k,def)=>{const v=PRECOS&&PRECOS.padroes?PRECOS.padroes[k]:undefined;return v===undefined||v===null||v===''?def:(typeof def==='number'?+v:v)};
+const precoDe=nome=>{if(!nome||!PRECOS)return 0;const p=PRECOS.precos.find(x=>x.nome===nome);return p?+p.preco||0:0};
+const acharInsumo=(...ch)=>{if(!PRECOS)return '';const p=PRECOS.precos.find(x=>ch.every(c=>x.nome.toLowerCase().includes(c)));return p?p.nome:''};
+const chapasDe=papel=>PRECOS?PRECOS.precos.filter(p=>p.papel===papel):[];
+function matPadrao(papel){
+  const alvo=String(pdv('mat_'+papel.toLowerCase(),'')).toLowerCase(),lst=chapasDe(papel);if(!lst.length)return papel;
+  const em=alvo.match(/(\d+(?:[.,]\d+)?)\s*mm/),esp=em?+em[1].replace(',','.'):null;
+  const mesmos=lst.filter(p=>esp===null||Math.abs(p.esp-esp)<0.6);const pool=mesmos.length?mesmos:lst;
+  const regras=[[['branco','branca'],['branco']],[['madeirad','jequit','carvalho','freij','nogueira','louro'],['jequit','madeirad','carvalho','freij','nogueira','louro']],[['cru','ruc'],['cru','ruc']]];
+  for(const [cp,ct] of regras)if(cp.some(k=>alvo.includes(k))){const c=pool.find(p=>ct.some(k=>p.nome.toLowerCase().includes(k)));if(c)return c.nome}
+  return pool[0].nome}
+function fitaDe(mat){if(!PRECOS)return '';const p=PRECOS.precos.find(x=>x.nome===mat);if(p&&p.fita)return p.fita;
+  const fitas=PRECOS.precos.filter(x=>x.papel==='Fita');const b=/branc/i.test(mat);return (fitas.find(f=>/branc/i.test(f.nome)===b)||fitas[0]||{}).nome||''}
+
+// ---- altura da base (rodapé / rodízio / pés / pé de base)
+function alturaBase(m){if(m.tipo==='aereo')return 0;const b=+m.base||0;
+  if(b===1)return pdv('rodape_alt',100);
+  if(b===2){const h=pdv('rodizio_alt',0);if(h>0)return h;const r=(PRECOS.rodizios||[])[pdv('rodizio_modelo',2)-1]||(PRECOS.rodizios||[])[1];return r?+r[2]:65}
+  if(b===3){const h=pdv('pes_alt',0);if(h>0)return h;const r=(PRECOS.pes||[])[pdv('pe_modelo',1)-1]||(PRECOS.pes||[])[0];return r?+r[2]:72}
+  if(b===4){const h=pdv('pe_base_alt',0);if(h>0)return h;const r=(PRECOS.pes_base||[])[pdv('pe_base_modelo',1)-1]||(PRECOS.pes_base||[])[0];return r?+r[2]:100}
+  return 0}
+const FOLGA_PE={'0086.015102':25,'0086.015103':18};
+
+// ---- peças de um móvel (caixas comuns: inferior, aéreo, torre; demais tipos aproximados como caixa comum)
+function pecasMovel(m){
+  const e=pdv('esp',15),ef=pdv('esp_fundo',6),fr=pdv('esp_frente',18),fo=pdv('folga',2),sa=pdv('larg_sarrafo',80),mt=pdv('margem_tamp',2);
+  const fc=pdv('folga_corredica',13),fag=pdv('folga_alt_gaveta',40);
+  const L=+m.larg||0,Atot=+m.alt||0,P=+m.prof||0,portas=+m.portas||0,gav=+m.gavetas||0,prats=+m.prats||0;
+  const tipo=m.tipo||'inferior',R=alturaBase(m),A=Atot-R,pl=P-ef,li=L-2*e,base=m.tipo==='aereo'?0:(+m.base||0);
+  const mc=m.matCaixa||matPadrao('Caixa'),mf=m.matFrente||matPadrao('Frente'),mfu=matPadrao('Fundo');
+  const out=[],F0=[0,0,0,0],F1=[1,0,0,0],F4=[1,1,1,1],AX={X:0,Y:1,Z:2};
+  const add=(d,papel,dim,cA,lA,fita)=>{const mat=papel==='Frente'?mf:papel==='Fundo'?mfu:mc,c=dim[AX[cA]],l=dim[AX[lA]],esp=dim.find((v,i)=>i!==AX[cA]&&i!==AX[lA]);
+    out.push({d,papel,mat,c:Math.round(c),l:Math.round(l),esp,fita,alt:dim[2],veio:papel!=='Fundo'&&!!pdv('veio_'+papel.toLowerCase(),0)})};
+  // pés na lateral: a lateral desce até a folga do pé (laterais_ate_o_piso)
+  let gPe=null;if(base===3){const r=(PRECOS.pes||[])[pdv('pe_modelo',1)-1]||(PRECOS.pes||[])[0];gPe=r?(FOLGA_PE[r[1]]||25):25;if(R<=gPe)gPe=null}
+  const hLat=gPe!==null?Atot-gPe:A;
+  if(R>0&&(base===1||base===4))add(base===4?'Saia do rodapé':'Rodapé','Frente',[L,base===4?fr:e,R],'X','Z',F1);
+  add('Lateral','Caixa',[e,pl,hLat],'Z','Y',F1);add('Lateral','Caixa',[e,pl,hLat],'Z','Y',F1);
+  add('Base','Caixa',[li,pl,e],'X','Y',F1);
+  if(tipo==='inferior'){add('Sarrafo','Caixa',[li,sa,e],'X','Y',F1);add('Sarrafo','Caixa',[li,sa,e],'X','Y',F1)}
+  else add('Topo','Caixa',[li,pl,e],'X','Y',F1);
+  for(let i=0;i<prats;i++)add('Prateleira','Caixa',[li,pl-20,e],'X','Y',F1);
+  add('Fundo','Fundo',[L,ef,A],'Z','X',F0);
+  if(portas){const wp=(L-(portas+1)*fo)/portas;for(let i=0;i<portas;i++)add('Porta','Frente',[wp,fr,A-2*fo],'Z','X',F4)}
+  let compGav=0;
+  if(gav){const hg=(A-(gav+1)*fo)/gav,hc=hg-fag,oculta=/oculta/i.test(String(pdv('corredica','')));
+    if(oculta){const pint=P-ef,lista=(PRECOS.corredicas&&PRECOS.corredicas['Oculta Slowmotion ET'])||[250,300,350,400,450,500,550];
+      const cr=Math.max(...(lista.filter(c=>c+20<=pint).length?lista.filter(c=>c+20<=pint):[lista[0]]));compGav=cr;
+      const lx=L-2*e-41,lig=lx-2*e;
+      for(let k=0;k<gav;k++){add('Frente de Gaveta','Frente',[L-2*fo,fr,hg],'X','Z',F4);
+        add('Lateral da Gaveta','Caixa',[e,cr,hc],'Y','Z',F0);add('Lateral da Gaveta','Caixa',[e,cr,hc],'Y','Z',F0);
+        add('Contra-frente da Gaveta','Caixa',[lig,e,hc],'X','Z',F0);add('Fundo da Gaveta','Fundo',[lig,cr-e,ef],'X','Y',F0);
+        add('Traseira da Gaveta','Caixa',[lig,e,hc-12-ef],'X','Z',F0)}}
+    else{const livre=P-ef-10,CR=[250,300,350,400,450,500,550,600],ok=CR.filter(c=>c<=livre),cr=ok.length?Math.max(...ok):CR[0];compGav=cr;
+      const lx=L-2*e-2*fc;
+      for(let k=0;k<gav;k++){add('Frente de Gaveta','Frente',[L-2*fo,fr,hg],'X','Z',F4);
+        add('Lateral da Gaveta','Caixa',[e,cr,hc],'Y','Z',F0);add('Lateral da Gaveta','Caixa',[e,cr,hc],'Y','Z',F0);
+        add('Frente/Trás da Gaveta','Caixa',[lx-2*e,e,hc],'X','Z',F0);add('Frente/Trás da Gaveta','Caixa',[lx-2*e,e,hc],'X','Z',F0);
+        add('Fundo da Gaveta','Fundo',[lx,cr,ef],'X','Y',F0)}}}
+  // tamponamentos laterais (do chão ao topo com rodapé/sem base; com rodízio/pés, na altura da caixa)
+  const tw=P+fr+mt,hT=gPe!==null?Atot-gPe:([0,1,4].includes(base)?Atot:Atot-R);
+  if(+m.tamp_esq)add('Tamponamento','Frente',[fr,tw,hT],'Z','Y',F4);
+  if(+m.tamp_dir)add('Tamponamento','Frente',[fr,tw,hT],'Z','Y',F4);
+  return {pecas:out.filter(p=>p.c>0&&p.l>0),compGav,aprox:!['inferior','aereo','torre'].includes(tipo)}}
+
+// ---- ferragens de um móvel (calcular_itens)
+const qtdDob=(alt,tab,extra)=>{const t=[...tab].sort((a,b)=>a[0]-b[0]);for(const [lim,q] of t)if(alt<=lim)return q;return t[t.length-1][1]+extra};
+function nomeCorredica(tipo,L){if(tipo==='Oculta Slowmotion ET')return `Corrediça Oculta FGVTN Slowmotion ET ${L} mm (par)`;
+  if(tipo==='Telescópica TT45 Slowmotion')return `Corrediça Telescópica FGVTN TT45 Slowmotion ${L} mm (par)`;return `Corrediça Telescópica FGVTN TT45 ${L} mm (par)`}
+function corredicaPara(tipo,comp){const l=(PRECOS.corredicas&&PRECOS.corredicas[tipo])||[250,300,350,400,450,500,550,600];const ok=l.filter(x=>x<=comp+1);return ok.length?ok[ok.length-1]:l[0]}
+function ferragensMovel(m,res){
+  const par=PRECOS.par||{},f={},soma=(n,q)=>{if(n&&q)f[n]=(f[n]||0)+q};
+  let dob=String(pdv('dobradica','Reta'));dob=['Reta','Curva','Alta'].find(d=>dob.toLowerCase().includes(d.toLowerCase()))||'Reta';
+  let cor=String(pdv('corredica','Telescópica TT45'));cor=/oculta/i.test(cor)?'Oculta Slowmotion ET':/slow/i.test(cor)?'Telescópica TT45 Slowmotion':'Telescópica TT45';
+  const nomeDob='Dobradiça FGVTN Click Slow '+dob,nomeCor=nomeCorredica(cor,corredicaPara(cor,res.compGav||Math.max(250,(+m.prof||500)-30)));
+  const pux=pdv('puxador_cliente',0)>=1?'':acharInsumo('puxador'),pit=acharInsumo('pit'),paraf=acharInsumo('parafuso');
+  const tabDob=par.dobradicas||[[1000,2],[1600,3],[2000,4],[2600,5]],extra=+par.dobr_extra||1,pesoTab=PRECOS.peso_dobradicas||[[6,2],[12,3],[17,4],[22,5]];
+  let caixas=0;
+  for(const p of res.pecas){const d=p.d.toLowerCase();
+    if(d.startsWith('porta')){const alt=p.alt>50?p.alt:p.c,peso=p.c*p.l*Math.max(p.esp||18,1)/1e9*750;
+      soma(nomeDob,Math.max(qtdDob(alt,tabDob,extra),qtdDob(peso,pesoTab,1)));soma(pux,+par.puxadores_porta||1)}
+    else if(d.includes('frente de gaveta')){soma(nomeCor,1);soma(pux,1)}
+    else if(d.startsWith('prateleira'))soma(pit,+par.pitoes_prat||4);
+    if(d.startsWith('lateral')&&!d.includes('gaveta'))caixas+=0.5}
+  const L=+m.larg||0;soma('Cantoneira de fixação c/ capa (L6FXRQ9P4)',(m.tipo||'').startsWith('canto_l')?4:L<=600?2:L<=1000?3:4);
+  const b=m.tipo==='aereo'?0:(+m.base||0);
+  if(b===2){const r=(PRECOS.rodizios||[])[pdv('rodizio_modelo',2)-1]||(PRECOS.rodizios||[])[1];if(r)soma(r[0]+' (un)',pdv('rodizios_qtd',4)||4)}
+  else if(b===3){const r=(PRECOS.pes||[])[pdv('pe_modelo',1)-1]||(PRECOS.pes||[])[0];if(r)soma(r[0],Math.ceil((pdv('pes_qtd',4)||4)/(PRECOS.pes_por_kit||4)))}
+  else if(b===4){const r=(PRECOS.pes_base||[])[pdv('pe_base_modelo',1)-1]||(PRECOS.pes_base||[])[0];let q=pdv('pes_base_qtd',0);if(q<2)q=L<=900?4:L<=1400?6:8;if(r)soma(r[0],q/(+r[3]||10))}
+  if(paraf)soma(paraf,Math.max(1,Math.round(caixas))*(+par.parafusos_caixa||20)/100);
+  return f}
+
+// ---- plano de corte (PlanoDeCorte.otimizar)
+function _ors(it,transp){let o=it.veio?[[it.l,it.c]]:[[it.l,it.c],[it.c,it.l]];if(transp)o=o.map(([w,h])=>[h,w]);const s=new Set,r=[];for(const x of o){const k=x.join('x');if(!s.has(k)){s.add(k);r.push(x)}}return r}
+function _empacotar(itens,W,H,K,transp,ordem,pol){
+  const chapas=[];
+  const chave=it=>{let o=_ors(it,transp);if(pol==='baixa')o=[...o].sort((a,b)=>a[1]-b[1]);else if(pol==='alta')o=[...o].sort((a,b)=>b[1]-a[1]);const [w,h]=o[0];return ordem==='h'?[h,w]:ordem==='area'?[w*h,h]:[w,h]};
+  const lst=[...itens].sort((a,b)=>{const x=chave(a),y=chave(b);return y[0]-x[0]||y[1]-x[1]});
+  for(const it of lst){let ors=_ors(it,transp);if(pol==='baixa')ors=[ors.reduce((a,b)=>b[1]<a[1]?b:a)];else if(pol==='alta')ors=[ors.reduce((a,b)=>b[1]>a[1]?b:a)];
+    let melhor=null;const cmp=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
+    for(const [w,h] of ors){if(w>W||h>H)continue;
+      chapas.forEach((ch,si)=>{for(const f of ch.faixas){for(const b of f.blocos)if(w<=b.w&&b.usado+h<=f.h){const k=[si,0,(b.w-w)+(f.h-b.usado-h)*0.01];if(!melhor||cmp(k,melhor[0])<0)melhor=[k,'pilha',ch,f,b,w,h]}
+          if(h<=f.h&&f.usado+w<=W){const k=[si,1,(f.h-h)*2+w*0.001];if(!melhor||cmp(k,melhor[0])<0)melhor=[k,'bloco',ch,f,null,w,h]}}
+        if(ch.usado+h<=H){const k=[si,2,h];if(!melhor||cmp(k,melhor[0])<0)melhor=[k,'faixa',ch,null,null,w,h]}})}
+    if(!melhor){const val=ors.filter(o=>o[0]<=W&&o[1]<=H);if(!val.length)throw new Error(`Peça maior que a chapa: ${it.d} ${it.c}x${it.l}`);
+      const [w,h]=val.reduce((a,b)=>b[1]<a[1]?b:a);const ch={usado:0,faixas:[]};chapas.push(ch);melhor=[null,'faixa',ch,null,null,w,h]}
+    let [,modo,ch,f,b,w,h]=melhor;
+    if(modo==='faixa'){f={y:ch.usado,h,usado:0,blocos:[]};ch.faixas.push(f);ch.usado+=h+K}
+    if(modo==='faixa'||modo==='bloco'){b={x:f.usado,w,usado:0,pecas:[]};f.blocos.push(b);f.usado+=w+K}
+    b.pecas.push([b.usado,w,h,it]);b.usado+=h+K}
+  return chapas}
+function _cortes(ch,W,H,K){let n=ch.faixas.length-((ch.usado-K)>=H?1:0);
+  for(const f of ch.faixas){n+=f.blocos.length-((f.usado-K)>=W?1:0);for(const b of f.blocos){n+=b.pecas.length-((b.usado-K)>=f.h?1:0);n+=b.pecas.filter(p=>p[1]<b.w).length}}return n}
+function otimizar(itens,SW,SH,REF,K){const LW=SH-2*REF,LH=SW-2*REF;let best=null;
+  for(const transp of [false,true])for(const ordem of ['h','area','w'])for(const pol of ['baixa','alta','livre']){
+    const [W,H]=transp?[LH,LW]:[LW,LH];let chs;try{chs=_empacotar(itens,W,H,K,transp,ordem,pol)}catch(e){continue}
+    const cortes=chs.reduce((s,c)=>s+_cortes(c,W,H,K),0),ult=chs[chs.length-1].faixas.reduce((s,f)=>s+f.blocos.reduce((t,b)=>t+b.pecas.reduce((u,p)=>u+p[1]*p[2],0),0),0);
+    const sc=[chs.length,ult,cortes];if(!best||sc[0]<best.sc[0]||(sc[0]===best.sc[0]&&(sc[1]<best.sc[1]||(sc[1]===best.sc[1]&&sc[2]<best.sc[2]))))best={sc,chs,W,H}}
+  if(!best)throw new Error('Não foi possível encaixar as peças');return {chapas:best.chs.length,cortes:best.sc[2]}}
+
+// ---- orçamento do projeto inteiro
+function nomeMovel(m){const p=+m.portas||0,g=+m.gavetas||0,pr=+m.prats||0;
+  const base={inferior:'armário inferior',aereo:'armário aéreo',torre:'torre',torre_quente:'torre quente',cooktop:'balcão do cooktop'}[m.tipo]||'armário';
+  let t=g&&!p?`gaveteiro ${g} gaveta${g>1?'s':''}`:p?`${base} ${p===1?'uma porta':'duas portas'}${g?` e ${g} gaveta${g>1?'s':''}`:''}`:`${base} aberto`;
+  if(pr)t+=`, ${pr} prateleira${pr>1?'s':''}`;return m.nome?`${m.nome} - ${t}`:t}
+function calcularOrcamento(p){
+  if(!PRECOS)throw new Error('Carregue os preços primeiro (menu ⋮ > Carregar preços)');
+  const o=p.orc||{},prm=Object.assign({},PRECOS.params,o.params||{}),itens=[],todas=[];
+  for(const a of p.ambientes)for(const m of (a.moveis||[])){if(!m.larg||!m.alt||!m.prof)continue;
+    const r=pecasMovel(m),f=ferragensMovel(m,r),it={amb:a.nome,m,desc:nomeMovel(m),pecas:r.pecas,aprox:r.aprox,ferr:f,area:{},fita:{}};
+    for(const pc of r.pecas){it.area[pc.mat]=(it.area[pc.mat]||0)+pc.c*pc.l/1e6;const fm=((pc.fita[0]+pc.fita[1])*pc.c+(pc.fita[2]+pc.fita[3])*pc.l)/1000;if(fm)it.fita[pc.mat]=(it.fita[pc.mat]||0)+fm;todas.push(pc)}
+    itens.push(it)}
+  if(!itens.length)throw new Error('Nenhum móvel com largura, altura e profundidade');
+  const [SW,SH,REF,K]=PRECOS.chapa||[2740,1840,10,4],mats={};let cortes=0;const porMat={};
+  for(const pc of todas)(porMat[pc.mat]=porMat[pc.mat]||[]).push(pc);
+  for(const [mat,lst] of Object.entries(porMat)){const r=otimizar(lst,SW,SH,REF,K),area=lst.reduce((s,x)=>s+x.c*x.l/1e6,0),pr=precoDe(mat);
+    mats[mat]={chapas:r.chapas,preco:pr,custo:r.chapas*pr,area,m2:area>0?r.chapas*pr/area:0,fita:fitaDe(mat)};cortes+=r.cortes}
+  const nPecas=todas.length,perda=(+prm.perda_fita||0)/100,pc=+prm.preco_corte||0,marg=+prm.margem||3,mcorte=(+prm.mult_corte||0)===1;
+  const faltando=new Set;
+  for(const it of itens){it.mdf=Object.entries(it.area).reduce((s,[m,a])=>s+a*mats[m].m2,0);
+    it.fitaC=Object.entries(it.fita).reduce((s,[m,v])=>s+v*precoDe(mats[m].fita)*(1+perda),0);
+    it.ferrC=Object.entries(it.ferr).reduce((s,[n,q])=>{const pr=precoDe(n);if(!pr)faltando.add(n);return s+q*pr},0);
+    it.extras=(o.extras||[]).filter(x=>x.movel===it.m.id).reduce((s,x)=>s+(+x.qtd||0)*(+x.preco||0),0);
+    it.cortes=nPecas?it.pecas.length/nPecas*cortes:0;it.corteC=it.cortes*pc;
+    it.custo=it.mdf+it.fitaC+it.ferrC+it.extras+it.corteC;
+    it.cliente=Math.round(((it.mdf+it.fitaC+it.ferrC+it.extras)*marg+it.corteC*(mcorte?marg:1))*100)/100}
+  const sm=k=>itens.reduce((s,x)=>s+x[k],0),moveis=sm('cliente');
+  const extrasCli=((+prm.carreto||0)+(+prm.km_extra||0)*(+prm.valor_km||0)+(+prm.montagem_extra||0)+(+prm.extra1_valor||0)+(+prm.extra2_valor||0))*((+prm.extras_margem||0)===1?marg:1);
+  const total=moveis+extrasCli,desc=Math.round(total*(+prm.desconto_vista||0))/100,avista=total-desc,entrada=Math.round(avista*(+prm.entrada_pct||0))/100;
+  return {itens,mats,cortes,nPecas,prm,custo:sm('custo'),moveis,extrasCli,total,desc,avista,entrada,faltando:[...faltando]}}
+const R$=v=>'R$ '+(+v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+// ---- tela do orçamento
+const PARAMS_UI=[['margem','Margem (multiplicador)','0.01'],['desconto_vista','Desconto à vista (%)','0.1'],['entrada_pct','Entrada (%)','1'],
+  ['carreto','Carreto / frete (R$)','0.01'],['montagem_extra','Montagem extra (R$)','0.01'],['prazo_dias','Prazo de entrega (dias)','1']];
+let ORC=null;
+function telaOrc(){
+  titulo('Orçamento',P.cliente||'');
+  if(!PRECOS)return `<section class="stack"><div class="vazio"><p><b>Carregue os preços primeiro.</b></p>
+    <p>No FreeCAD, clique em <b>Enviar preços para o tablet</b> (barra Ambiente). Depois, aqui: <b>Carregar preços</b> e escolha <b>precos_tablet.txt</b> na pasta OneDrive › Medições.</p></div>
+    <div><button class="primary" data-a="carregarPrecos">Carregar preços</button></div></section>`;
+  if(!P.orc)P.orc={params:{},extras:[]};
+  try{ORC=calcularOrcamento(P)}catch(e){return `<section class="stack"><div class="pend"><b>${esc(e.message)}</b></div><div><button data-a="carregarPrecos">Carregar preços</button></div></section>`}
+  const o=ORC,prm=o.prm,materiaisCaixa=chapasDe('Caixa'),materiaisFrente=chapasDe('Frente');
+  return `<section class="stack">
+  <div class="pend ok bk"><div><b>Preços de ${esc(PRECOS.gerado)}</b><br><span class="meta">${PRECOS.precos.length} itens da sua Tabela de Preços + ferragens FGV</span></div><button data-a="carregarPrecos">Atualizar preços</button></div>
+  ${o.faltando.length?`<div class="pend"><b>Itens com preço zerado na sua planilha (Precos_Ferragens_FGV / Tabela de Preços):</b> ${o.faltando.map(esc).join('; ')}</div>`:''}
+  ${o.itens.some(i=>i.aprox)?`<div class="pend"><b>Atenção:</b> torre quente, cooktop e cantos foram calculados como caixa comum. Confira esses no FreeCAD.</div>`:''}
+  <div class="grid2">${PARAMS_UI.map(([k,n,st])=>`<div><label>${n}</label><input type="number" step="${st}" inputmode="decimal" data-o="orc" data-f="${k}" value="${prm[k]??''}"></div>`).join('')}</div>
+  <div class="orc-tot">
+    <div><span class="meta">Custo (material, fita, ferragens, cortes)</span><b>${R$(o.custo)}</b></div>
+    <div><span class="meta">Móveis ao cliente</span><b>${R$(o.moveis)}</b></div>
+    ${o.extrasCli?`<div><span class="meta">Carreto e extras</span><b>${R$(o.extrasCli)}</b></div>`:''}
+    <div class="big"><span class="meta">Total</span><b>${R$(o.total)}</b></div>
+    <div><span class="meta">À vista (−${prm.desconto_vista||0}%)</span><b>${R$(o.avista)}</b></div>
+    <div><span class="meta">Entrada ${prm.entrada_pct||0}%</span><b>${R$(o.entrada)}</b></div>
+  </div>
+  <div class="bar"><h3>Móveis</h3><span class="meta">${o.nPecas} peças · ${o.cortes} cortes · ${Object.values(o.mats).reduce((s,m)=>s+m.chapas,0)} chapas</span></div>
+  <div class="itens">${o.itens.map(it=>`<div class="item" style="--c:#8a5a2b">
+    <div class="bar"><b>${esc(it.desc)}</b><b>${R$(it.cliente)}</b></div>
+    <span class="meta">${esc(it.amb)} · ${it.m.larg} × ${it.m.alt} × ${it.m.prof} · custo ${R$(it.custo)} (MDF ${R$(it.mdf)}, fita ${R$(it.fitaC)}, ferragens ${R$(it.ferrC)}, cortes ${R$(it.corteC)})</span>
+    <div class="ig">
+      <div><label>Cor da caixa</label><select data-o="mcor" data-id="${it.m.id}" data-f="matCaixa">${materiaisCaixa.map(p=>`<option${(it.m.matCaixa||matPadrao('Caixa'))===p.nome?' selected':''}>${esc(p.nome)}</option>`).join('')}</select></div>
+      <div><label>Cor da frente</label><select data-o="mcor" data-id="${it.m.id}" data-f="matFrente">${materiaisFrente.map(p=>`<option${(it.m.matFrente||matPadrao('Frente'))===p.nome?' selected':''}>${esc(p.nome)}</option>`).join('')}</select></div>
+    </div>
+    <details><summary>Peças (${it.pecas.length}) e ferragens</summary>
+      <div class="wrap"><table class="tb"><tr><th>Peça</th><th>Comp.</th><th>Larg.</th><th>Material</th><th>Fita</th></tr>${it.pecas.map(pc=>`<tr><td>${pc.d}</td><td>${pc.c}</td><td>${pc.l}</td><td>${esc(pc.mat)}</td><td>${pc.fita.join('')}</td></tr>`).join('')}</table></div>
+      <div class="wrap"><table class="tb"><tr><th>Ferragem</th><th>Qtd</th><th>Unit.</th></tr>${Object.entries(it.ferr).map(([n,q])=>`<tr><td>${esc(n)}</td><td>${+q.toFixed(2)}</td><td>${R$(precoDe(n))}</td></tr>`).join('')}</table></div>
+    </details></div>`).join('')}</div>
+  <div class="bar"><h3>Chapas</h3></div>
+  <div class="wrap"><table class="tb"><tr><th>Material</th><th>Chapas</th><th>Preço</th><th>Custo</th><th>m² peças</th></tr>${Object.entries(o.mats).map(([m,x])=>`<tr><td>${esc(m)}</td><td>${x.chapas}</td><td>${R$(x.preco)}</td><td>${R$(x.custo)}</td><td>${x.area.toFixed(2)}</td></tr>`).join('')}</table></div>
+  <div class="bar"><h3>Enviar</h3></div>
+  <div class="exp">
+    <button data-a="orcCli"><b>Orçamento do cliente</b><span>Página para mostrar ou enviar ao cliente</span></button>
+    <button data-a="orcXlsx"><b>Excel completo</b><span>Cliente, custos, chapas, ferragens e peças</span></button>
+    <button data-a="orcLeo"><b>Lista de corte Leo (CSV)</b><span>Mesmo formato do Exportar Leo</span></button>
+  </div>
+  <p class="dica">Prévia com as mesmas regras e preços da bancada. O orçamento oficial continua sendo o do FreeCAD + Excel.</p>
+  </section>`}
+
+// ---- saídas
+function orcClienteHTML(){const o=ORC,prm=o.prm,hoje=new Date().toLocaleDateString('pt-BR');
+  const css='body{font:15px/1.5 system-ui,sans-serif;color:#1b2621;margin:0;padding:24px max(16px,4vw);max-width:900px}h1{margin:0}table{width:100%;border-collapse:collapse;margin:14px 0}td,th{border-bottom:1px solid #ddd;padding:7px 8px;text-align:left}th{font-size:.8rem;text-transform:uppercase;color:#66716b}td.v{text-align:right;white-space:nowrap}.tot td{font-weight:700;border-top:2px solid #0f6b4f}.meta{color:#66716b}';
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Orçamento ${esc(P.cliente)}</title><style>${css}</style></head><body>
+  <h1>Orçamento</h1><p class="meta">${esc(prm.empresa_linha||'')}<br>Tel. ${esc(prm.empresa_tel||'')} · PIX ${esc(prm.empresa_pix||'')}</p>
+  <p><b>Cliente:</b> ${esc(P.cliente||'')}<br><b>Obra:</b> ${esc(P.endereco||'')}<br><b>Data:</b> ${hoje}</p>
+  <table><tr><th>Ambiente</th><th>Móvel</th><th>Medidas (L × A × P)</th><th style="text-align:right">Valor</th></tr>
+  ${o.itens.map(it=>`<tr><td>${esc(it.amb)}</td><td>${esc(it.desc)}</td><td>${it.m.larg} × ${it.m.alt} × ${it.m.prof}</td><td class="v">${R$(it.cliente)}</td></tr>`).join('')}
+  ${o.extrasCli?`<tr><td colspan="3">Carreto e extras</td><td class="v">${R$(o.extrasCli)}</td></tr>`:''}
+  <tr class="tot"><td colspan="3">Total</td><td class="v">${R$(o.total)}</td></tr>
+  <tr><td colspan="3">À vista (desconto de ${prm.desconto_vista||0}%)</td><td class="v">${R$(o.avista)}</td></tr>
+  <tr><td colspan="3">Entrada de ${prm.entrada_pct||0}% (restante na entrega)</td><td class="v">${R$(o.entrada)}</td></tr></table>
+  <p>Prazo máximo de entrega: ${prm.prazo_dias||60} dias.</p><p class="meta">${esc(prm.texto_validade||'')}<br>${esc(prm.texto_obs||'')}</p></body></html>`}
+function _xs(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function _sheet(rows){const col=i=>{let s='';i++;while(i){const r=(i-1)%26;s=String.fromCharCode(65+r)+s;i=Math.floor((i-1)/26)}return s};
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+
+  rows.map((r,ri)=>`<row r="${ri+1}">`+r.map((v,ci)=>{const ref=col(ci)+(ri+1);return typeof v==='number'&&isFinite(v)?`<c r="${ref}"><v>${Math.round(v*100)/100}</v></c>`:`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${_xs(v)}</t></is></c>`}).join('')+'</row>').join('')+'</sheetData></worksheet>'}
+async function xlsx(abas){const nomes=Object.keys(abas),A=[];
+  A.push({nome:'[Content_Types].xml',dados:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+nomes.map((n,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>'});
+  A.push({nome:'_rels/.rels',dados:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'});
+  A.push({nome:'xl/workbook.xml',dados:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+nomes.map((n,i)=>`<sheet name="${_xs(n.slice(0,31))}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>'});
+  A.push({nome:'xl/_rels/workbook.xml.rels',dados:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+nomes.map((n,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')+'</Relationships>'});
+  nomes.forEach((n,i)=>A.push({nome:`xl/worksheets/sheet${i+1}.xml`,dados:_sheet(abas[n])}));
+  const z=await zipar(A);return new Blob([z],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+async function orcExcel(){const o=ORC,prm=o.prm;
+  const cli=[['ORÇAMENTO',P.cliente||''],['Obra',P.endereco||''],['Data',new Date().toLocaleDateString('pt-BR')],[],['Ambiente','Móvel','Larg.','Alt.','Prof.','Valor (R$)'],
+    ...o.itens.map(it=>[it.amb,it.desc,+it.m.larg,+it.m.alt,+it.m.prof,it.cliente]),[],['','Carreto e extras','','','',o.extrasCli],['','TOTAL','','','',o.total],
+    ['','À vista (-'+(prm.desconto_vista||0)+'%)','','','',o.avista],['','Entrada '+(prm.entrada_pct||0)+'%','','','',o.entrada]];
+  const cus=[['Nº','Ambiente','Móvel','MDF','Fita','Ferragens','Extras','Cortes','Custo total','Preço cliente'],
+    ...o.itens.map((it,i)=>[i+1,it.amb,it.desc,it.mdf,it.fitaC,it.ferrC,it.extras,it.corteC,it.custo,it.cliente]),[],['','','TOTAL','','','','','',o.custo,o.moveis],[],['Margem',+prm.margem],['Preço por corte',+prm.preco_corte],['Perda de fita (%)',+prm.perda_fita]];
+  const mat=[['Material','Chapas','Preço chapa','Custo','Área peças (m²)','Custo / m²','Fita'],...Object.entries(o.mats).map(([m,x])=>[m,x.chapas,x.preco,x.custo,x.area,x.m2,x.fita]),[],['Total de cortes',o.cortes],['Total de peças',o.nPecas]];
+  const fer={};o.itens.forEach(it=>Object.entries(it.ferr).forEach(([n,q])=>fer[n]=(fer[n]||0)+q));
+  const ferr=[['Ferragem','Qtd','Preço unit.','Custo'],...Object.entries(fer).map(([n,q])=>[n,q,precoDe(n),q*precoDe(n)])];
+  const pec=[['Móvel','Peça','Comp.','Larg.','Esp.','Material','Fita (C C L L)'],...o.itens.flatMap(it=>it.pecas.map(pc=>[it.desc,pc.d,pc.c,pc.l,pc.esp,pc.mat,pc.fita.join(' ')]))];
+  const blob=await xlsx({'Orçamento Cliente':cli,'Custos':cus,'Materiais':mat,'Ferragens':ferr,'Peças':pec});
+  await entregar(slug(P.cliente)+'_Orcamento_tablet.xlsx',blob)}
+function orcLeo(){const g=new Map;
+  for(const it of ORC.itens)for(const pc of it.pecas){const k=[pc.c,pc.l,pc.d,pc.mat,...pc.fita,it.amb].join('|');g.set(k,(g.get(k)||0)+1)}
+  const L=['QUANTIDADE;COMPRIMENTO;LARGURA;DESCRICAO_PECA;MATERIAL;FITA_COMPRIMENTO_CIMA;FITA_COMPRIMENTO_BAIXO;FITA_LARGURA_ESQUERDA;FITA_LARGURA_DIREITA;NOME_AMBIENTE'];
+  for(const [k,q] of g){const [c,l,d,m,f0,f1,f2,f3,a]=k.split('|');L.push([q,c,l,d,m,f0,f1,f2,f3,a].join(';'))}
+  return '﻿'+L.join('\r\n')+'\r\n'}
+
 /* ================= eventos ================= */
 function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id)}
 document.addEventListener('click',async e=>{
@@ -1118,6 +1383,11 @@ document.addEventListener('click',async e=>{
     case 'delProj':if(!dupla(b))return;for(const fo of P.ambientes.flatMap(fotosAmb))dbDel('fotos',fo).catch(()=>{});
       await dbDel('projetos',P.id);projetos=projetos.filter(p=>p!==P);P=null;view='lista';render();break;
     case 'exp':exportar(f);break;
+    case 'abrirOrc':view='orc';render();scrollTo(0,0);break;
+    case 'carregarPrecos':$('#precoFile').click();break;
+    case 'orcCli':if(ORC)await entregar(slug(P.cliente)+'_orcamento.html',new Blob([orcClienteHTML()],{type:'text/html'}));break;
+    case 'orcXlsx':if(ORC)try{await orcExcel()}catch(er){toast('Erro no Excel: '+er.message,4000)}break;
+    case 'orcLeo':if(ORC)await entregar(slug(P.cliente)+'_Leo.csv',new Blob([orcLeo()],{type:'text/csv'}));break;
     case 'bkOne':backupOneDrive(b);break;
     case 'importar':$('#impFile').click();break;
     case 'verFoto':verFoto(id,b.dataset.dono);break;
@@ -1140,6 +1410,9 @@ document.addEventListener('change',async e=>{
   const el=e.target;
   if(el.id==='prefShare'){prefShare=el.checked;ls.set('glm_share',prefShare?'1':'0');return}
   if(el.id==='impFile'){await importar(el.files[0]);el.value='';return}
+  if(el.id==='precoFile'){await importarPrecos(el.files[0]);el.value='';return}
+  if(el.dataset.o==='orc'){if(!P.orc)P.orc={params:{},extras:[]};const v=el.value.trim();if(v==='')delete P.orc.params[el.dataset.f];else P.orc.params[el.dataset.f]=num(v);salvar();render();return}
+  if(el.dataset.o==='mcor'){const m=P.ambientes.flatMap(a=>a.moveis||[]).find(x=>x.id===el.dataset.id);if(m){m[el.dataset.f]=el.value;salvar();render()}return}
   if(el.dataset.fotoO){const files=[...el.files];el.value='';
     const dono=el.dataset.fotoO==='a'?A:el.dataset.fotoO==='w'?A.paredes.find(w=>w.id===el.dataset.id):A.itens.find(i=>i.id===el.dataset.id);if(!dono)return;if(!dono.fotos)dono.fotos=[];
     let ultId=null;for(const file of files){try{const blob=await comprimir(file),id=uid();await dbPut('fotos',{id,blob});dono.fotos.push(id);ultId=id}catch(err){toast('Não consegui salvar a foto: '+err.message,4000)}}
@@ -1150,15 +1423,15 @@ document.addEventListener('change',async e=>{
   if(o==='m'&&el.dataset.f==='k'&&MOVEIS[v]){const pr=MOVEIS[v];Object.assign(t,{tipo:pr.tipo,larg:pr.larg,alt:pr.alt,prof:pr.prof,z:pr.z,portas:pr.portas,gavetas:pr.gavetas,prats:pr.prats,base:pr.base});salvar()}
   if(el.dataset.full)render();else if(view==='amb')parcial();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
 });
-$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='diag'||view==='ajuda'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
+$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='orc'){view='projeto'}else if(view==='diag'||view==='ajuda'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
 $('#fabMedir').onclick=medirRemoto;$('#fabLaser').onclick=alternarLaser;
 $('#menuBtn').onclick=()=>{$('#menu').hidden=!$('#menu').hidden};
 
 /* ================= início ================= */
 (async()=>{
-  try{await abrirDB();projetos=await dbAll('projetos')}catch(e){toast('Erro ao abrir os dados: '+e.message,5000)}
+  try{await abrirDB();projetos=await dbAll('projetos');await carregarPrecosSalvos()}catch(e){toast('Erro ao abrir os dados: '+e.message,5000)}
   try{const n=JSON.parse(ls.get('glm_nav')||'{}');P=projetos.find(p=>p.id===n.p)||null;A=P&&P.ambientes.find(a=>a.id===n.a)||null;
-    view=A?'amb':P?'projeto':'lista'}catch(e){view='lista'}
+    view=A?'amb':P&&n.view==='orc'?'orc':P?'projeto':'lista'}catch(e){view='lista'}
   render();
   if(!('bluetooth' in navigator))btStatus('Sem Bluetooth');
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
