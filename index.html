@@ -339,6 +339,7 @@ function planSVGreal(a,g,opt={}){const T=ESP_PAREDE;
     if(it.tipo==='viga'){const d2=d+(it.larg||300);s+=`<polyline points="${P2(w,d,0)} ${P2(w,d,250)} ${P2(w,d2,250)} ${P2(w,d2,0)}" fill="none" stroke="${t.cor}" stroke-width="1.5" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>`}
     else if(!t.ab){const cx=w.ax+w.ux*d+w.ix*fs*.75,cy=-(w.ay+w.uy*d+w.iy*fs*.75);
       s+=`<circle cx="${cx}" cy="${cy}" r="${fs*.45}" fill="${t.cor}"/><text x="${cx}" y="${cy}" font-size="${fs*.55}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-weight="700">${esc(t.n[0])}</text>`}});
+  s+=cotasInternasPlanta(a,g,fs,T,true);
   return s+'</svg>'}
 
 
@@ -1603,7 +1604,8 @@ function elevSVGreal(a,wid){const i=a.paredes.findIndex(w=>w.id===wid);if(i<0)re
   s+=cotaV(0,H,-pad*.75,`PD ${a.peDireito||'?'}`,a.peDireito?'#1b2621':'#a86a00');
   const zs=new Set([0,H]);movs.forEach(({m})=>{zs.add(+m.z||0);zs.add((+m.z||0)+(+m.alt))});const zl=[...zs].map(Math.round).filter(z=>z>=0&&z<=H).sort((p,q)=>p-q);
   for(let k=0;k<zl.length-1;k++)if(zl[k+1]-zl[k]>=1)s+=cotaV(zl[k],zl[k+1],L+pad*.75,Math.round(zl[k+1]-zl[k]));
-  s+=`<text x="0" y="${-H-fs*2.6}" font-size="${fs*.6}" fill="#66716b">◀ ${LETRAS[(i-1+a.paredes.length)%a.paredes.length]||''}</text><text x="${L}" y="${-H-fs*2.6}" font-size="${fs*.6}" text-anchor="end" fill="#66716b">${LETRAS[(i+1)%a.paredes.length]||''} ▶</text>`;
+  s+=`<text x="0" y="${-H-fs*4.3}" font-size="${fs*.6}" fill="#66716b">◀ ${LETRAS[(i-1+a.paredes.length)%a.paredes.length]||''}</text><text x="${L}" y="${-H-fs*4.3}" font-size="${fs*.6}" text-anchor="end" fill="#66716b">${LETRAS[(i+1)%a.paredes.length]||''} ▶</text>`;
+  s+=cotasInternasElev(a,wid,L,H,fs,true);
   return s+'</svg>'}
 
 
@@ -1729,6 +1731,7 @@ function planSVGsimples(a,g,opt={}){
     }else{const cx=w.ax+w.ux*d+w.ix*fs*.75,cy=-(w.ay+w.uy*d+w.iy*fs*.75);
       s+=`<circle cx="${cx}" cy="${cy}" r="${fs*.45}" fill="${t.cor}"/><text x="${cx}" y="${cy}" font-size="${fs*.55}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-weight="700">${esc(t.n[0])}</text>`;}
   });
+  s+=cotasInternasPlanta(a,g,fs,0,false);
   return s+'</svg>';
 }
 
@@ -1764,6 +1767,7 @@ function elevSVGsimples(a,wid){const i=a.paredes.findIndex(w=>w.id===wid);if(i<0
   s+=`<text x="${L/2}" y="${cyp+fs*1.1}" font-size="${fs}" text-anchor="middle" style="fill:${w.L?'var(--fg)':'var(--warn)'}" font-weight="800">Parede ${LETRAS[i]} · ${w.L?Math.round(L):'? (sem medida)'}</text>`;
   const cx=-pad*.7;s+=`<line x1="${cx}" y1="0" x2="${cx}" y2="${-H}" style="stroke:var(--fg)" vector-effect="non-scaling-stroke"/><text x="${cx-fs*.4}" y="${-H/2}" font-size="${fs*.8}" text-anchor="middle" transform="rotate(-90 ${cx-fs*.4} ${-H/2})" style="fill:${a.peDireito?'var(--fg)':'var(--warn)'}" font-weight="700">PD ${a.peDireito||'?'}</text>`;
   s+=`<text x="0" y="${-H-fs*.5}" font-size="${fs*.65}" style="fill:var(--muted)">◀ ${LETRAS[(i-1+a.paredes.length)%a.paredes.length]||''}</text><text x="${L}" y="${-H-fs*.5}" font-size="${fs*.65}" text-anchor="end" style="fill:var(--muted)">${LETRAS[(i+1)%a.paredes.length]||''} ▶</text>`;
+  s+=cotasInternasElev(a,wid,L,H,fs,false);
   return s+'</svg>'}
 
 
@@ -1888,6 +1892,36 @@ function sobraDe(o,obj){const w=A.paredes.find(x=>x.id===obj.parede);if(!w||!w.L
 function sobraHTML(o,obj){const w=A.paredes.find(x=>x.id===obj.parede);
   return `<div><label>Sobra até o fim${w&&w.L?'':' (meça a parede)'}</label><input class="laser sobra" inputmode="decimal" autocomplete="off" data-sobra="${o}" data-id="${obj.id}" data-k="${o}:${obj.id}:sobra" value="${sobraDe(o,obj)}" placeholder="mm"></div>`}
 function atualizarSobras(){document.querySelectorAll('input[data-sobra]').forEach(el=>{if(el===document.activeElement)return;const obj=el.dataset.sobra==='i'?A.itens.find(x=>x.id===el.dataset.id):(A.moveis||[]).find(x=>x.id===el.dataset.id);if(obj)el.value=sobraDe(el.dataset.sobra,obj)})}
+
+/* ================= COTAS INTERNAS (elevação e planta) ================= */
+function _cH(xa,xb,y,txt,cor,fs){const tk=fs*.32;return `<g style="stroke:${cor}"><line x1="${xa-tk}" y1="${y}" x2="${xb+tk}" y2="${y}" stroke-width="1" vector-effect="non-scaling-stroke"/>${[xa,xb].map(x=>`<line x1="${x-tk}" y1="${y+tk}" x2="${x+tk}" y2="${y-tk}" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="${x}" y1="${y-tk*1.5}" x2="${x}" y2="${y+tk*1.5}" stroke-width=".8" vector-effect="non-scaling-stroke"/>`).join('')}</g><text x="${(xa+xb)/2}" y="${y-tk*.9}" font-size="${fs*.58}" text-anchor="middle" style="fill:${cor}" font-weight="600">${txt}</text>`}
+function _cV(za,zb,x,txt,cor,fs,lado=-1){const tk=fs*.32,ya=-za,yb=-zb,ym=(ya+yb)/2,tx=x+lado*tk*.9;return `<g style="stroke:${cor}"><line x1="${x}" y1="${ya+tk}" x2="${x}" y2="${yb-tk}" stroke-width="1" vector-effect="non-scaling-stroke"/>${[ya,yb].map(y=>`<line x1="${x-tk}" y1="${y+tk}" x2="${x+tk}" y2="${y-tk}" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="${x-tk*1.5}" y1="${y}" x2="${x+tk*1.5}" y2="${y}" stroke-width=".8" vector-effect="non-scaling-stroke"/>`).join('')}</g><text x="${tx}" y="${ym}" font-size="${fs*.55}" text-anchor="middle" transform="rotate(-90 ${tx} ${ym})" style="fill:${cor}" font-weight="600">${txt}</text>`}
+// elevação: corrente das aberturas e pontos em cima, alturas de cada abertura e de cada ponto
+function cotasInternasElev(a,wid,L,H,fs,real){const its=a.itens.filter(x=>x.parede===wid);if(!its.length)return '';const fg=real?'#30353a':'var(--fg)';let s='';
+  const b=[0,L];its.forEach(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;if(t.ab){const o=aberturaDim(it,H);b.push(o.u0,o.u1)}else b.push(+it.dist||0)});
+  const u=[...new Set(b.map(v=>Math.round(Math.max(0,Math.min(L,v)))))].sort((p,q)=>p-q),yc=-H-fs*(real?3.1:2.3);
+  for(let k=0;k<u.length-1;k++)if(u[k+1]-u[k]>=1)s+=_cH(u[k],u[k+1],yc,Math.round(u[k+1]-u[k]),fg,fs);
+  s+=`<text x="${-fs*.4}" y="${yc+fs*.2}" font-size="${fs*.5}" text-anchor="end" style="fill:${real?'#66716b':'var(--muted)'}">vãos e pontos</text>`;
+  its.forEach(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;
+    if(t.ab){const o=aberturaDim(it,H),x=Math.min(L-fs*.2,o.u1+fs*.75);
+      if(o.z0>1)s+=_cV(0,o.z0,x,(it.tipo==='janela'?'peitoril ':'')+Math.round(o.z0),t.cor,fs,1);
+      s+=_cV(o.z0,o.z1,x,Math.round(o.z1-o.z0),t.cor,fs,1);
+      if(H-o.z1>1&&it.tipo!=='viga')s+=_cV(o.z1,H,x,Math.round(H-o.z1),t.cor,fs,1)}
+    else{const x=+it.dist||0,z=+it.alt||300;s+=`<line x1="${x}" y1="0" x2="${x}" y2="${-z+fs*.5}" style="stroke:${t.cor}" stroke-width="1" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>`+_cV(0,z,x-fs*.55,'h '+Math.round(z),t.cor,fs,-1).replace(/<line x1="[^"]*" y1="[^"]*" x2="[^"]*" y2="[^"]*" stroke-width="1" vector-effect="non-scaling-stroke"\/>/,'')}});
+  return s}
+// planta: corrente das aberturas e móveis por fora de cada parede
+function cotasInternasPlanta(a,g,fs,T,real){const fg=real?'#30353a':'var(--fg)';let s='';
+  g.ws.forEach((w,i)=>{const pw=a.paredes[i],its=a.itens.filter(x=>x.parede===pw.id),mv=(a.moveis||[]).filter(m=>m.parede===pw.id&&m.larg);if(!its.length&&!mv.length)return;
+    const L=w.L,b=[0,L];its.forEach(it=>{const t=TIPOS[it.tipo]||TIPOS.outro;if(t.ab){b.push(+it.dist||0,(+it.dist||0)+(+it.larg||(it.tipo==='janela'?1200:800)))}else b.push(+it.dist||0)});
+    const u=[...new Set(b.map(v=>Math.round(Math.max(0,Math.min(L,v)))))].sort((p,q)=>p-q);if(u.length<=2&&!mv.length)return;
+    const off=-(T+fs*1.1),P=(uu,nn)=>[w.ax+w.ux*uu+w.ix*nn,-(w.ay+w.uy*uu+w.iy*nn)],r=rotTxt(w.ux,-w.uy),tk=fs*.3;
+    const cad=(lst,nn,cor)=>{let o='';for(let k=0;k<lst.length-1;k++){const d=lst[k+1]-lst[k];if(d<1)continue;const [ax,ay]=P(lst[k],nn),[bx,by]=P(lst[k+1],nn),[mx,my]=P((lst[k]+lst[k+1])/2,nn-fs*.45);
+        o+=`<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" style="stroke:${cor}" stroke-width="1" vector-effect="non-scaling-stroke"/><text x="${mx}" y="${my}" font-size="${fs*.5}" text-anchor="middle" dominant-baseline="middle" transform="rotate(${r} ${mx} ${my})" style="fill:${cor}" font-weight="600">${Math.round(d)}</text>`}
+      lst.forEach(v=>{const [x1,y1]=P(v,nn-tk),[x2,y2]=P(v,nn+tk);o+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="stroke:${cor}" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`});return o};
+    if(u.length>2)s+=cad(u,off,fg);
+    if(mv.length){const bm=[0,L];mv.forEach(m=>bm.push(+m.dist||0,(+m.dist||0)+(+m.larg)));const um=[...new Set(bm.map(v=>Math.round(Math.max(0,Math.min(L,v)))))].sort((p,q)=>p-q);
+      if(um.length>2)s+=cad(um,off-(u.length>2?fs*1.2:0),real?'#2e7d32':'#3f9a52')}});
+  return s}
 
 /* ================= eventos ================= */
 function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id)}
