@@ -35,6 +35,7 @@ body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--body);-webkit-tap
 .ult.flash{background:var(--laser);color:#fff}
 .ic{background:transparent;border:0;color:inherit;font-size:1.3rem;min-width:44px;min-height:44px;border-radius:8px;cursor:pointer}
 .btchip{display:flex;align-items:center;gap:6px;background:#ffffff14;color:var(--top-fg);border:0;border-radius:999px;padding:8px 12px;font:600 .85rem var(--body);min-height:40px;cursor:pointer}
+.ic.sy{font-size:1.15rem;opacity:.55;min-width:36px}.ic.sy[data-st=ok]{opacity:1;color:#3bdc8f}.ic.sy[data-st=busy]{opacity:1;color:#e3a640}.ic.sy[data-st=erro]{opacity:1;color:#ff6a52}
 .btchip .dot{width:10px;height:10px;border-radius:50%;background:#7c8a84}
 .btchip.on .dot{background:#3bdc8f;box-shadow:0 0 0 3px #3bdc8f40}
 .btchip.busy .dot{background:#e3a640}
@@ -169,11 +170,13 @@ pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;backgrou
   <div class="tt"><b id="titulo">Medidor GLM</b><small id="sub"></small></div>
   <div class="ult" id="ult" title="Última leitura da trena">— mm</div>
   <button id="bt" class="btchip"><span class="dot"></span><span id="btTxt">Conectar trena</span></button>
+  <button id="syChip" class="ic sy" data-a="mSync" aria-label="Sincronização" hidden>☁</button>
   <button id="menuBtn" class="ic" aria-label="Menu">⋮</button>
 </header>
 <div id="menu" class="menu" hidden>
   <button data-a="mTodos">Procurar todos os aparelhos</button>
   <button data-a="mDesc">Desconectar trena</button>
+  <button data-a="mSync">Sincronizar aparelhos</button>
   <button data-a="carregarPrecos">Carregar preços (do FreeCAD)</button>
   <button data-a="mAjuda">Como usar e exportar</button>
   <button data-a="mDiag">Diagnóstico do Bluetooth</button>
@@ -252,7 +255,7 @@ const dbDel=(s,k)=>tx(s,'readwrite',st=>st.delete(k));
 /* ================= estado ================= */
 let projetos=[],P=null,A=null,view='lista',prevView='lista',selW=null,alvoKey=null;
 let prefShare=ls.get('glm_share')==='1';
-let tS;function salvar(){clearTimeout(tS);const p=P;if(p)p.alterado=Date.now();tS=setTimeout(()=>{if(p)dbPut('projetos',p).catch(e=>toast('Erro ao salvar: '+e.message))},250)}
+let tS;function salvar(){clearTimeout(tS);const p=P;if(p)p.alterado=Date.now();tS=setTimeout(()=>{if(p)dbPut('projetos',p).catch(e=>toast('Erro ao salvar: '+e.message))},250);if(typeof agendarSync==='function')agendarSync()}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&P){clearTimeout(tS);dbPut('projetos',P).catch(()=>{})}});
 function guardarNav(){ls.set('glm_nav',JSON.stringify({view,p:P&&P.id,a:A&&A.id}))}
 const letra=(id,a=A)=>{const i=a?a.paredes.findIndex(w=>w.id===id):-1;return i<0?'?':LETRAS[i]};
@@ -347,6 +350,7 @@ function render(){
   else if(view==='amb'){m.innerHTML=telaAmb();if(vista==='3d')ligar3D()}
   else if(view==='diag')m.innerHTML=telaDiag();
   else if(view==='ajuda')m.innerHTML=telaAjuda();
+  else if(view==='sync')m.innerHTML=telaSync();
   else if(view==='orc')m.innerHTML=telaOrc();
   else if(view==='modelo')m.innerHTML=telaModelo();
   else if(view==='desenho'){m.innerHTML=telaDesenho();ligarPad()}
@@ -667,7 +671,7 @@ $('#edSave').onclick=async()=>{const b=$('#edSave');b.disabled=true;b.textConten
   try{const anot=ED.anot.map(a=>{const c=clone(a);delete c._w;delete c._h;return c});let blobAnot=null;
     if(anot.length){const c=document.createElement('canvas');c.width=ED.img.width;c.height=ED.img.height;const ctx=c.getContext('2d');ctx.drawImage(ED.img,0,0);
       anot.forEach(a=>edAnot(ctx,a,edBase(),false));blobAnot=await new Promise(r=>c.toBlob(r,'image/jpeg',.86))}
-    const rec={...ED.rec,anot,blobAnot};await dbPut('fotos',rec);
+    const rec={...ED.rec,anot,blobAnot,alt:Date.now()};await dbPut('fotos',rec);
     if(urls[ED.id]){URL.revokeObjectURL(urls[ED.id]);delete urls[ED.id]}
     edFechar();render();toast('Foto salva com as anotações')}
   catch(e){toast('Não consegui salvar: '+e.message,4000)}finally{b.disabled=false;b.textContent='Salvar'}};
@@ -2162,6 +2166,135 @@ function setoresHTML(){const sa=setorDe(A),st=SETORES.find(x=>x.id===sa)||SETORE
   return `<div class="abas setores" role="tablist">${SETORES.map(x=>`<button role="tab" data-a="setor" data-f="${x.id}"${x.id===sa?' class="on" aria-selected="true"':''}>${x.n}</button>`).join('')}</div>
   <div class="quick modelos-mov">${st.itens.map(k=>{const t=MOVEIS[k];return t?`<button data-a="addM" data-f="${k}" title="${esc(t.n)} · ${t.larg} × ${t.alt} × ${t.prof}">${iconeMovel(t)}<span>${t.n}<small>${t.larg} × ${t.alt} × ${t.prof}</small></span></button>`:''}).join('')}</div>`}
 
+/* ================= SINCRONIZAÇÃO ENTRE APARELHOS (repositório privado no GitHub) =================
+   Cada projeto vira projetos/<id>.json e cada foto fotos/<id>.json no repositório.
+   Um pedido (árvore do repositório) mostra o que mudou; só sobe/desce o que mudou.
+   Projeto mexido nos dois aparelhos: fica o mais novo e o outro vira uma cópia "(conflito)". */
+const SY={cfg:null,meta:{p:{},f:{}},rodando:false,deNovo:false,ult:0,erro:'',tmr:null,nuvem:0};
+async function syCarregar(){try{const r=await dbGet('config','sync');if(r){SY.cfg=r.cfg||null;SY.meta=r.meta||{p:{},f:{}};SY.meta.p=SY.meta.p||{};SY.meta.f=SY.meta.f||{};SY.ult=r.ult||0}}catch(e){}}
+function syGravar(){return dbPut('config',{id:'sync',cfg:SY.cfg,meta:SY.meta,ult:SY.ult}).catch(()=>{})}
+const syLig=()=>!!(SY.cfg&&SY.cfg.repo&&SY.cfg.tok);
+async function gh(cam,op={}){
+  const h={Authorization:'Bearer '+SY.cfg.tok,Accept:op.raw?'application/vnd.github.raw+json':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+  if(op.body)h['Content-Type']='application/json';
+  const r=await fetch('https://api.github.com/repos/'+SY.cfg.repo+cam,{method:op.method||'GET',body:op.body,headers:h,cache:'no-store'});
+  if(!r.ok){const t=await r.text().catch(()=>'');
+    const er=new Error(r.status===401?'chave inválida ou vencida':r.status===404?'repositório não encontrado (confira o nome e se a chave dá acesso a ele)':r.status===403?'sem permissão: a chave precisa de Contents = Read and write':r.status===409&&/empty/i.test(t)?'repositório vazio':'GitHub '+r.status+' '+t.slice(0,140));
+    er.status=r.status;throw er}
+  return op.raw?r.text():r.json()}
+function b64utf8(s){const by=new TextEncoder().encode(s);let bin='';for(let i=0;i<by.length;i+=0x8000)bin+=String.fromCharCode.apply(null,by.subarray(i,i+0x8000));return btoa(bin)}
+async function syArvore(){try{const t=await gh('/git/trees/'+encodeURIComponent(SY.cfg.ramo||'main')+'?recursive=1');const m={};for(const x of t.tree||[])if(x.type==='blob')m[x.path]=x.sha;return m}
+  catch(e){if(e.status===409||e.status===404)return {};throw e}}
+async function syPut(path,texto,sha){const r=await gh('/contents/'+path,{method:'PUT',body:JSON.stringify(Object.assign({message:'medidor: '+path,content:b64utf8(texto)},sha?{sha}:{}))});return r.content.sha}
+const syLer=sha=>gh('/git/blobs/'+sha,{raw:true});
+async function syFotoTxt(id){const r=await dbGet('fotos',id).catch(()=>null);if(!r)return null;
+  return JSON.stringify({b:await b64(r.blob),a:r.anot||[],ba:r.blobAnot?await b64(r.blobAnot):null,alt:r.alt||0})}
+async function syFotoGravar(id,txt){const u=JSON.parse(txt),bl=x=>fetch(x).then(r=>r.blob());
+  await dbPut('fotos',{id,blob:await bl(u.b),anot:u.a||[],blobAnot:u.ba?await bl(u.ba):null,alt:u.alt||0});delete urls[id]}
+const altDe=p=>p?(p.alterado||p.criado||0):null;
+const syOcupado=()=>{const el=document.activeElement;return (el&&el.closest&&el.closest('#main')&&/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))||!$('#editor').hidden||!$('#viewer').hidden||view==='desenho'};
+async function sySubir(lp,rem){
+  for(const fid of lp.ambientes.flatMap(fotosAmb)){const fp='fotos/'+fid+'.json',mf=SY.meta.f[fid];
+    const r=await dbGet('fotos',fid).catch(()=>null);if(!r)continue;
+    if(!rem[fp]||!mf||(r.alt||0)!==mf.alt){const txt=await syFotoTxt(fid);if(!txt)continue;
+      const sha=await syPut(fp,txt,rem[fp]);rem[fp]=sha;SY.meta.f[fid]={sha,alt:r.alt||0}}}
+  const path='projetos/'+lp.id+'.json',sha=await syPut(path,JSON.stringify(lp),rem[path]);rem[path]=sha;
+  SY.meta.p[lp.id]={sha,alt:altDe(lp)}}
+async function syAplicar(d,sha,rem){
+  for(const fid of d.ambientes.flatMap(fotosAmb)){const fp='fotos/'+fid+'.json';if(!rem[fp])continue;
+    const loc=await dbGet('fotos',fid).catch(()=>null),mf=SY.meta.f[fid];
+    if(!loc||!mf||mf.sha!==rem[fp]){const txt=await syLer(rem[fp]);await syFotoGravar(fid,txt);SY.meta.f[fid]={sha:rem[fp],alt:JSON.parse(txt).alt||0}}}
+  await dbPut('projetos',d);const i=projetos.findIndex(p=>p.id===d.id);if(i>=0)projetos[i]=d;else projetos.push(d);
+  if(P&&P.id===d.id){const aid=A&&A.id;P=d;A=aid?d.ambientes.find(x=>x.id===aid)||null:null;if(view==='amb'&&!A)view='projeto'}
+  SY.meta.p[d.id]={sha,alt:altDe(d)}}
+async function syRemover(id){const lp=projetos.find(p=>p.id===id);if(!lp)return;
+  for(const fo of lp.ambientes.flatMap(fotosAmb))dbDel('fotos',fo).catch(()=>{});
+  await dbDel('projetos',id).catch(()=>{});projetos=projetos.filter(p=>p.id!==id);
+  if(P&&P.id===id){P=null;A=null;view='lista'}}
+async function sincronizar(manual){
+  if(!syLig()){if(manual)toast('Ligue a sincronização no menu ⋮ → Sincronizar aparelhos');return}
+  if(!navigator.onLine){syChip('off');if(manual)toast('Sem internet agora. Sincroniza quando voltar.');return}
+  if(SY.rodando){SY.deNovo=true;return}
+  SY.rodando=true;SY.deNovo=false;syChip('busy');let sub=0,des=0,conf=0,mudouTela=false;
+  try{
+    if(P){clearTimeout(tS);await dbPut('projetos',P)}
+    const rem=await syArvore();
+    const ids=new Set([...projetos.map(p=>p.id),...Object.keys(SY.meta.p),
+      ...Object.keys(rem).filter(k=>/^projetos\/.+\.json$/.test(k)).map(k=>k.slice(9,-5))]);
+    for(const id of ids){
+      const path='projetos/'+id+'.json',rs=rem[path],me=SY.meta.p[id]||{},lp=projetos.find(p=>p.id===id);
+      if(!lp&&me.pend){                                   // apagado aqui: avisa os outros aparelhos
+        if(rs){const sha=await syPut(path,JSON.stringify({id,apagado:true,alterado:Date.now()}),rs);rem[path]=sha;SY.meta.p[id]={sha,apagado:true}}
+        else SY.meta.p[id]={apagado:true};continue}
+      if(!lp&&!rs){delete SY.meta.p[id];continue}
+      if(!lp&&me.apagado&&rs===me.sha)continue;
+      const mudL=!!lp&&(altDe(lp)!==me.alt||!rs),mudR=!!rs&&rs!==me.sha;
+      if(!mudL&&!mudR)continue;
+      if(lp===P&&mudR&&syOcupado()){SY.deNovo=true;continue}  // está digitando nesse projeto: depois
+      if(mudL&&!mudR){await sySubir(lp,rem);sub++;continue}
+      const d=JSON.parse(await syLer(rs));
+      if(d.apagado){if(lp&&mudL&&me.sha){await sySubir(lp,rem);sub++}else{if(lp){await syRemover(id);mudouTela=true;des++}SY.meta.p[id]={sha:rs,apagado:true}}continue}
+      if(!lp||!mudL){await syAplicar(d,rs,rem);des++;mudouTela=true;continue}
+      // mexido nos dois aparelhos
+      if(altDe(d)===altDe(lp)){SY.meta.p[id]={sha:rs,alt:altDe(lp)};continue}
+      const copia=JSON.parse(JSON.stringify(altDe(d)>altDe(lp)?lp:d));
+      copia.id=uid();copia.cliente=(copia.cliente||'Sem nome')+' (conflito '+new Date(altDe(copia)).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})+')';
+      if(altDe(d)>altDe(lp))await syAplicar(d,rs,rem);else await sySubir(lp,rem);
+      await dbPut('projetos',copia);projetos.push(copia);await sySubir(copia,rem);conf++;mudouTela=true}
+    SY.nuvem=Object.keys(rem).filter(k=>k.startsWith('projetos/')).length;
+    SY.ult=Date.now();SY.erro='';await syGravar();syChip('ok');
+    if(mudouTela&&!syOcupado())render();else if(view==='sync')render();
+    if(des||conf)toast(`☁ ${des?des+' projeto(s) atualizado(s) de outro aparelho':''}${des&&conf?' · ':''}${conf?conf+' conflito(s): ficou a versão mais nova e uma cópia':''}`,4000);
+    else if(manual)toast(sub?`☁ ${sub} projeto(s) enviado(s)`:'☁ Tudo sincronizado');
+  }catch(e){SY.erro=e.message;await syGravar();syChip('erro');if(manual||view==='sync')toast('Sincronização: '+e.message,5000);if(view==='sync')render()}
+  finally{SY.rodando=false;if(SY.deNovo)agendarSync(4000)}}
+function agendarSync(ms=6000){if(!syLig())return;clearTimeout(SY.tmr);SY.tmr=setTimeout(()=>sincronizar(),ms)}
+function syApagado(id){if(!syLig())return;SY.meta.p[id]=Object.assign({},SY.meta.p[id],{apagado:true,pend:true});syGravar();agendarSync(1500)}
+function syChip(st){const b=$('#syChip');if(!b)return;b.hidden=!syLig();b.dataset.st=st||'';
+  b.title=st==='ok'?'Sincronizado '+new Date(SY.ult).toLocaleTimeString('pt-BR',{timeStyle:'short'}):st==='busy'?'Sincronizando…':st==='erro'?'Erro: '+SY.erro:'Sem internet'}
+async function syLigar(repo,tok){
+  repo=(repo||'').trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/+$/,'');tok=(tok||'').trim();
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo))throw new Error('o repositório deve ser usuario/nome, ex.: godoiedu-maker/medidor-dados');
+  const velho=SY.cfg;if(!tok&&velho&&velho.repo===repo)tok=velho.tok;
+  if(!tok)throw new Error('cole a chave do GitHub');
+  SY.cfg={repo,tok};let info;
+  try{info=await gh('')}catch(e){SY.cfg=velho;throw e}
+  if(!info.private){SY.cfg=velho;throw new Error('o repositório está PÚBLICO: qualquer pessoa veria seus clientes. Deixe ele privado no GitHub e tente de novo.')}
+  if(info.permissions&&!info.permissions.push){SY.cfg=velho;throw new Error('a chave só lê. Ela precisa de Contents = Read and write')}
+  SY.cfg.ramo=info.default_branch||'main';
+  if(!velho||velho.repo!==repo)SY.meta={p:{},f:{}};
+  await syGravar();syChip('busy');await sincronizar(true)}
+function syLink(){return location.origin+location.pathname+'#sync='+btoa(JSON.stringify({repo:SY.cfg.repo,tok:SY.cfg.tok}))}
+async function syDoLink(){const m=location.hash.match(/^#sync=(.+)$/);if(!m)return;history.replaceState(null,'',location.pathname+location.search);
+  try{const c=JSON.parse(atob(decodeURIComponent(m[1])));await syLigar(c.repo,c.tok);toast('☁ Sincronização ligada neste aparelho',4000);view='lista';render()}
+  catch(e){toast('Link de sincronização: '+e.message,6000)}}
+function telaSync(){titulo('Sincronizar aparelhos','Tablet, celular e computador');
+  const lig=syLig(),q=SY.cfg||{};
+  const st=!lig?'<div class="pend"><b>Desligada.</b> Os projetos ficam só neste aparelho.</div>'
+    :SY.erro?`<div class="pend"><b>Erro:</b> ${esc(SY.erro)}</div>`
+    :`<div class="pend ok"><b>Ligada</b> com <b>${esc(q.repo)}</b>. ${SY.ult?'Última sincronização: '+new Date(SY.ult).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})+' · '+SY.nuvem+' projeto(s) na nuvem.':'Ainda não sincronizou.'}</div>`;
+  return `<section class="stack ajuda">
+  ${st}
+  ${lig?`<div class="row wrap"><button class="primary" data-a="syAgora">Sincronizar agora</button><button data-a="syLinkBt">Enviar link para outro aparelho</button><button class="danger" data-a="syDesl">Desligar neste aparelho</button></div>
+  <p class="meta">Sincroniza sozinho: ao abrir o app, alguns segundos depois de cada alteração e a cada minuto com o app aberto. Sem internet, guarda e envia quando voltar.</p>
+  <p class="meta">O link leva a chave junto: mande só para você mesmo (ex.: WhatsApp "Eu") e apague a mensagem depois de abrir no outro aparelho.</p>`:''}
+  <h3>${lig?'Trocar repositório ou chave':'Como ligar (uma vez só)'}</h3>
+  ${lig?'':`<ol>
+    <li>No GitHub, entre com a sua conta e crie um repositório <b>privado</b> chamado <b>medidor-dados</b>, marcando <i>Add a README file</i>: <a href="https://github.com/new" target="_blank" rel="noopener">github.com/new</a>.</li>
+    <li>Crie a chave de acesso em <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a>:
+      <ul><li><b>Token name:</b> Medidor</li><li><b>Expiration:</b> o maior prazo que aparecer</li>
+      <li><b>Repository access:</b> Only select repositories → <b>medidor-dados</b></li>
+      <li><b>Permissions → Repository permissions → Contents:</b> Read and write</li></ul>
+      Toque em <b>Generate token</b> e copie a chave (começa com <code>github_pat_</code>).</li>
+    <li>Cole abaixo e toque em <b>Ligar</b>. Nos outros aparelhos, use o botão <b>Enviar link para outro aparelho</b> que aparece depois.</li></ol>`}
+  <div class="grid2">
+    <div><label for="syRepo">Repositório (usuário/nome)</label><input id="syRepo" value="${esc(q.repo||'godoiedu-maker/medidor-dados')}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+    <div><label for="syTok">Chave do GitHub</label><input id="syTok" type="password" value="" placeholder="${lig?'(guardada - cole só para trocar)':'github_pat_...'}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+  </div>
+  <div><button class="primary" data-a="syLigarBt">${lig?'Salvar e testar':'Ligar'}</button></div>
+  <p class="meta">Os dados ficam no seu repositório privado. O repositório do app (medidor) continua público e não guarda nenhum projeto.</p>
+  </section>`}
+
 /* ================= eventos ================= */
 function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id);if(o==='v')return (A.avulsas||[]).find(v=>v.id===id)}
 document.addEventListener('click',async e=>{
@@ -2207,7 +2340,7 @@ document.addEventListener('click',async e=>{
     case 'delAmb':if(!dupla(b))return;for(const fo of fotosAmb(A))dbDel('fotos',fo).catch(()=>{});
       P.ambientes=P.ambientes.filter(x=>x!==A);A=null;salvar();view='projeto';render();break;
     case 'delProj':if(!dupla(b))return;for(const fo of P.ambientes.flatMap(fotosAmb))dbDel('fotos',fo).catch(()=>{});
-      await dbDel('projetos',P.id);projetos=projetos.filter(p=>p!==P);P=null;view='lista';render();break;
+      await dbDel('projetos',P.id);syApagado(P.id);projetos=projetos.filter(p=>p!==P);P=null;view='lista';render();break;
     case 'exp':exportar(f);break;
     case 'vista':vista=f;document.querySelectorAll('.abas button').forEach(x=>{x.classList.toggle('on',x.dataset.f===f)});{const el=$('#plan');el.innerHTML=vistaHTML(geo(A));if(f==='3d')ligar3D()}break;
     case 'estilo':estilo=f;try{localStorage.setItem('glm_estilo2',f)}catch(e){}{const el=$('#plan');el.innerHTML=vistaHTML(geo(A));if(vista==='3d')ligar3D()}break;
@@ -2229,8 +2362,13 @@ document.addEventListener('click',async e=>{
     case 'verFoto':verFoto(id,b.dataset.dono);break;
     case 'mTodos':conectar(true);break;
     case 'mDesc':if(device&&device.gatt.connected){device.gatt.disconnect();toast('Trena desconectada')}break;
-    case 'mDiag':if(view!=='diag'&&view!=='ajuda')prevView=view;view='diag';render();break;
-    case 'mAjuda':if(view!=='diag'&&view!=='ajuda')prevView=view;view='ajuda';render();break;
+    case 'mSync':if(view!=='diag'&&view!=='ajuda'&&view!=='sync')prevView=view;view='sync';render();scrollTo(0,0);break;
+    case 'syAgora':sincronizar(true);break;
+    case 'syLigarBt':b.disabled=true;try{await syLigar($('#syRepo').value,$('#syTok').value)}catch(err){toast('Não liguei: '+err.message,6000)}b.disabled=false;render();break;
+    case 'syDesl':if(!dupla(b))return;SY.cfg=null;SY.meta={p:{},f:{}};SY.ult=0;SY.erro='';await syGravar();syChip('');render();toast('Sincronização desligada neste aparelho (os projetos continuam aqui)',4000);break;
+    case 'syLinkBt':{const l=syLink();try{if(navigator.share){await navigator.share({title:'Medidor GLM - sincronizar',text:l})}else{await navigator.clipboard.writeText(l);toast('Link copiado. Abra no outro aparelho.',4000)}}catch(err){try{await navigator.clipboard.writeText(l);toast('Link copiado. Abra no outro aparelho.',4000)}catch(e2){prompt('Copie este link e abra no outro aparelho:',l)}}}break;
+    case 'mDiag':if(view!=='diag'&&view!=='ajuda'&&view!=='sync')prevView=view;view='diag';render();break;
+    case 'mAjuda':if(view!=='diag'&&view!=='ajuda'&&view!=='sync')prevView=view;view='ajuda';render();break;
     case 'copLog':try{await navigator.clipboard.writeText(logLines.join('\n'));toast('Diagnóstico copiado')}catch(_){toast('Não consegui copiar')}break;
     case 'ficha':fichaAberta=fichaAberta===id?null:id;cantoAberto=null;selW=id;render();break;
     case 'fichaFechar':fichaAberta=null;render();break;
@@ -2266,17 +2404,23 @@ document.addEventListener('change',async e=>{
   if(el.dataset.full)render();else if(view==='amb')parcial();
   if(view==='amb'&&o==='w')atualizarSobras();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
 });
-$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='orc'||view==='modelo'){view='projeto'}else if(view==='desenho'){desenho=null;view='modelo'}else if(view==='diag'||view==='ajuda'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
+$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='orc'||view==='modelo'){view='projeto'}else if(view==='desenho'){desenho=null;view='modelo'}else if(view==='diag'||view==='ajuda'||view==='sync'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
 $('#fabMedir').onclick=medirRemoto;$('#fabLaser').onclick=alternarLaser;
 document.addEventListener('toggle',e=>{if(e.target.classList&&e.target.classList.contains('metr')&&e.target.closest('#metr'))ls.set('glm_m2',e.target.open?'1':'0')},true);
 $('#menuBtn').onclick=()=>{$('#menu').hidden=!$('#menu').hidden};
 
 /* ================= início ================= */
 (async()=>{
-  try{await abrirDB();projetos=await dbAll('projetos');await carregarPrecosSalvos()}catch(e){toast('Erro ao abrir os dados: '+e.message,5000)}
+  try{await abrirDB();projetos=await dbAll('projetos');await carregarPrecosSalvos();await syCarregar()}catch(e){toast('Erro ao abrir os dados: '+e.message,5000)}
   try{const n=JSON.parse(ls.get('glm_nav')||'{}');P=projetos.find(p=>p.id===n.p)||null;A=P&&P.ambientes.find(a=>a.id===n.a)||null;
     view=A?'amb':P&&n.view==='orc'?'orc':P?'projeto':'lista'}catch(e){view='lista'}
   render();
+  syChip(syLig()?(navigator.onLine?'ok':'off'):'');
+  if(location.hash.startsWith('#sync='))syDoLink();else if(syLig())sincronizar();
+  setInterval(()=>{if(!document.hidden&&syLig())sincronizar()},60000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&syLig())sincronizar()});
+  addEventListener('hashchange',()=>{if(location.hash.startsWith('#sync='))syDoLink()});
+  addEventListener('online',()=>{if(syLig())sincronizar()});addEventListener('offline',()=>syChip('off'));
   if(!('bluetooth' in navigator))btStatus('Sem Bluetooth');
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
