@@ -229,7 +229,9 @@ const MOVEIS={
   canto_reto_esq:{n:'Canto reto (cega à esquerda)',tipo:'canto_reto_esq',larg:1000,alt:870,prof:580,z:0,portas:1,gavetas:0,prats:1,base:1},
   canto_reto_dir:{n:'Canto reto (cega à direita)',tipo:'canto_reto_dir',larg:1000,alt:870,prof:580,z:0,portas:1,gavetas:0,prats:1,base:1},
   guarda_roupa:{n:'Guarda-roupa (caixa inteira)',tipo:'guarda_roupa',larg:1000,alt:2400,prof:580,z:0,portas:2,gavetas:2,prats:2,base:1},
-  guarda_roupa_2:{n:'Guarda-roupa em 2 caixas (corpo + maleiro)',tipo:'guarda_roupa_2',larg:1000,alt:2400,prof:580,z:0,portas:2,gavetas:2,prats:2,base:1}
+  guarda_roupa_2:{n:'Guarda-roupa em 2 caixas (corpo + maleiro)',tipo:'guarda_roupa_2',larg:1000,alt:2400,prof:580,z:0,portas:2,gavetas:2,prats:2,base:1},
+  canto_l_gr_esq:{n:'Guarda-roupa de canto em L (canto à esquerda)',tipo:'canto_l_gr_esq',larg:1100,alt:2400,prof:1100,z:0,portas:2,gavetas:0,prats:2,base:1},
+  canto_l_gr_dir:{n:'Guarda-roupa de canto em L (canto à direita)',tipo:'canto_l_gr_dir',larg:1100,alt:2400,prof:1100,z:0,portas:2,gavetas:0,prats:2,base:1}
 };
 const BASES=['Nenhuma (direto no chão)','Rodapé','Rodízio','Pés parafusados','Pé nivelador + saia'];
 const ehAereo=m=>m.tipo==='aereo'||(+m.z||0)>=1000;
@@ -454,7 +456,7 @@ function movelHTML(m,idx){const k='m:'+m.id+':',c=corMovel(m);
     <div><label>Prateleiras</label><select data-o="m" data-id="${m.id}" data-f="prats" data-t="n">${[0,1,2,3,4,5,6].map(v=>`<option${+m.prats===v?' selected':''}>${v}</option>`).join('')}</select></div>
     <div><label>Base</label><select data-o="m" data-id="${m.id}" data-f="base" data-t="n">${BASES.map((b,i)=>`<option value="${i}"${+m.base===i?' selected':''}>${b}</option>`).join('')}</select></div>
   </div>
-  ${ehGR(m)?grCampos(m):''}
+  ${ehGR(m)||/^canto_l_gr_/.test(m.tipo)?grCampos(m):''}
   <div class="row wrap"><label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_esq" data-t="b"${m.tamp_esq?' checked':''}> Tamponamento esquerdo</label>
     <label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_dir" data-t="b"${m.tamp_dir?' checked':''}> Tamponamento direito</label>
     ${m.tipo!=='inferior'&&m.tipo!=='cooktop'||ehAereo(m)?`<label class="chk"><input type="checkbox" data-o="m" data-id="${m.id}" data-f="tamp_topo" data-t="b"${m.tamp_topo?' checked':''}> Tamponamento em cima</label>`:''}
@@ -1175,7 +1177,7 @@ function alturaBase(m){if(m.tipo==='aereo')return 0;const b=+m.base||0;
 const FOLGA_PE={'0086.015102':25,'0086.015103':18};
 
 // ---- peças de um móvel (caixas comuns: inferior, aéreo, torre; demais tipos aproximados como caixa comum)
-function pecasMovel(m){if(ehGR(m))return pecasGR(m);
+function pecasMovel(m){if(ehGR(m))return pecasGR(m);if(/^canto_l_gr_/.test(m.tipo))return pecasCantoGR(m);
   const e=pdv('esp',15),ef=pdv('esp_fundo',6),fr=pdv('esp_frente',18),fo=pdv('folga',2),sa=pdv('larg_sarrafo',80),mt=pdv('margem_tamp',2);
   const fc=pdv('folga_corredica',13),fag=pdv('folga_alt_gaveta',40);
   const L=+m.larg||0,Atot=+m.alt||0,P=+m.prof||0,portas=+m.portas||0,gav=+m.gavetas||0,prats=+m.prats||0;
@@ -1233,6 +1235,8 @@ function ferragensMovel(m,res){
   const tabDob=par.dobradicas||[[1000,2],[1600,3],[2000,4],[2600,5]],extra=+par.dobr_extra||1,pesoTab=PRECOS.peso_dobradicas||[[6,2],[12,3],[17,4],[22,5]];
   let caixas=0;
   for(const p of res.pecas){const d=p.d.toLowerCase();
+    if(d.includes('porta de canto')){const alt=p.alt>50?p.alt:p.c,art=d.includes('articulada');
+      soma(art?'Dobradiça TN 270° canto (51MI15TN2519100)':'Dobradiça FGVTN Click Slowmotion Reta 165° (51MX85FG11R1652)',qtdDob(alt,tabDob,extra));soma(pux,art?1:0);continue}
     if(d.startsWith('porta')){const alt=p.alt>50?p.alt:p.c,peso=p.c*p.l*Math.max(p.esp||18,1)/1e9*750;
       soma(nomeDob,Math.max(qtdDob(alt,tabDob,extra),qtdDob(peso,pesoTab,1)));soma(pux,+par.puxadores_porta||1)}
     else if(d.includes('frente de gaveta')){soma(nomeCor,1);soma(pux,1)}
@@ -1278,6 +1282,7 @@ function otimizar(itens,SW,SH,REF,K){const LW=SH-2*REF,LH=SW-2*REF;let best=null
 // ---- orçamento do projeto inteiro
 function nomeMovel(m){const p=+m.portas||0,g=+m.gavetas||0,pr=+m.prats||0;
   const base={inferior:'armário inferior',aereo:'armário aéreo',torre:'torre',torre_quente:'torre quente',cooktop:'balcão do cooktop',guarda_roupa:'guarda-roupa',guarda_roupa_2:'guarda-roupa em 2 caixas'}[m.tipo]||'armário';
+  if(/^canto_l_gr_/.test(m.tipo))return (m.nome?m.nome+' - ':'')+`guarda-roupa de canto em L, portas articuladas${grv(m,'gr_cabideiro')?', cabideiro':''}`;
   if(ehGR(m)){let t=`${base} ${p===1?'uma porta':p?'duas portas':'aberto'}${g?`, gaveteiro interno ${g} gaveta${g>1?'s':''}`:''}${grv(m,'gr_cabideiro')?', cabideiro':''}`;return m.nome?`${m.nome} - ${t}`:t}
   let t=g&&!p?`gaveteiro ${g} gaveta${g>1?'s':''}`:p?`${base} ${p===1?'uma porta':'duas portas'}${g?` e ${g} gaveta${g>1?'s':''}`:''}`:`${base} aberto`;
   if(pr)t+=`, ${pr} prateleira${pr>1?'s':''}`;return m.nome?`${m.nome} - ${t}`:t}
@@ -1522,7 +1527,7 @@ function ligarPad(){const pad=$('#pad');if(!pad||pad._ok)return;pad._ok=1;let pt
 
 // ---- cores dos móveis
 const COR_MOVEL={inferior:'#2e7d32',gabinete:'#00838f',gaveteiro:'#9e9d24',aereo:'#3949ab',espelheira:'#7e57c2',torre:'#6d4c41',torre_quente:'#c62828',cooktop:'#ad1457',
-  canto_l_esq:'#546e7a',canto_l_dir:'#546e7a',canto_reto_esq:'#8d6e63',canto_reto_dir:'#8d6e63',guarda_roupa:'#b7791f',guarda_roupa_2:'#9c6114'};
+  canto_l_esq:'#546e7a',canto_l_dir:'#546e7a',canto_reto_esq:'#8d6e63',canto_reto_dir:'#8d6e63',guarda_roupa:'#b7791f',guarda_roupa_2:'#9c6114',canto_l_gr_esq:'#7a5418',canto_l_gr_dir:'#7a5418'};
 const corMovel=m=>COR_MOVEL[m.k]||COR_MOVEL[m.tipo]||'#8a5a2b';
 
 // ---------------- acabamento realista (cores de material, como no FreeCAD)
@@ -2084,6 +2089,20 @@ function pecasGR(m){
   if(+m.tamp_dir)add('Tamponamento','Frente',[fr,tw,hT],'Z','Y',F4);
   const lT=L+(+m.tamp_esq?fr:0)+(+m.tamp_dir?fr:0);if(+m.tamp_topo)add('Tamponamento topo','Frente',[lT,tw,fr],'X','Y',F4);
   return {pecas:out.filter(p=>p.c>0&&p.l>0),compGav,aprox:false,extras,caixas:dois?2:1}}
+// guarda-roupa de canto em L (construir_canto da bancada, versão alta com maleiro e cabideiro)
+function pecasCantoGR(m){
+  const e=pdv('esp',15),ef=pdv('esp_fundo',6),fr=pdv('esp_frente',18),fo=pdv('folga',2),rec=pdv('rodape_recuo',40);
+  const LA=+m.larg||0,LB=+m.prof||0,At=+m.alt||0,n=+m.prats||0,base=+m.base||0,R=alturaBase(m),H=At-R,P1=580,P2=P1,yb=LB-P1,x1=LA-e,y2=e;
+  const mc=m.matCaixa||matPadrao('Caixa'),mf=m.matFrente||matPadrao('Frente'),mfu=matPadrao('Fundo'),out=[],extras={},F0=[0,0,0,0],F1=[1,0,0,0],F4=[1,1,1,1];
+  const add=(d,papel,c,l,esp,fita,alt)=>out.push({d,papel,mat:papel==='Frente'?mf:papel==='Fundo'?mfu:mc,c:Math.round(c),l:Math.round(l),esp,fita,alt:alt??esp,veio:papel!=='Fundo'&&!!pdv('veio_'+papel.toLowerCase(),0)});
+  add('Lateral (ponta do lado 1 - encosta na caixa vizinha)','Caixa',H,P1-ef,e,F1,H);add('Lateral (ponta do lado 2 - encosta na caixa vizinha)','Caixa',H,P2-ef,e,F1,H);
+  add('Base lado 1','Caixa',x1-ef,P1-ef,e,F1);add('Base lado 2','Caixa',yb-y2,P2-ef,e,F1);add('Topo lado 1','Caixa',x1-ef,P1-ef,e,F1);add('Topo lado 2','Caixa',yb-y2,P2-ef,e,F1);
+  for(let k=0;k<Math.min(n,2);k++){add('Prateleira lado 1','Caixa',x1-ef,P1-ef-20,e,F1);add('Prateleira lado 2','Caixa',yb-y2,P2-ef-20,e,F1)}
+  add('Fundo lado 1','Fundo',H,LA,ef,F0,H);add('Fundo lado 2','Fundo',H,LB-ef,ef,F0,H);
+  const hp=H-2*fo;add('Porta de canto articulada (dobradiça 270° na outra porta)','Frente',hp,LA-fo-P2,fr,F4,hp);add('Porta de canto (dobradiça 165° na lateral)','Frente',hp,yb-fr-2*fo,fr,F4,hp);
+  if(base===1&&R>0){const xr=P2-rec-e;add('Rodapé lado 1','Frente',LA-xr,R,e,F1,R);add('Rodapé lado 2','Frente',yb+rec,R,e,F1,R)}
+  if(grv(m,'gr_cabideiro')&&n>=1){extras[NOME_TUBO_CAB]=Math.round((x1-2-(P2+2))/10)/100;extras[NOME_SUP_CAB]=1}
+  return {pecas:out.filter(p=>p.c>0&&p.l>0),compGav:0,aprox:false,extras,caixas:1}}
 function grCampos(m){return `<div class="ig">
     <div><label>Prateleira do gaveteiro (do chão)</label>${inp('m','gr_prat_gav',grv(m,'gr_prat_gav'),'m:'+m.id+':gr_prat_gav',m.id)}</div>
     <div><label>Altura do maleiro (do topo)</label>${inp('m','gr_maleiro',grv(m,'gr_maleiro'),'m:'+m.id+':gr_maleiro',m.id)}</div></div>
