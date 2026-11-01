@@ -1960,7 +1960,7 @@ function cotasInternasPlanta(a,g,fs,T,real){const fg=real?'#30353a':'var(--fg)';
   return s}
 
 /* ================= PEÇAS AVULSAS (tampo engrossado, painel) e TAMPONAMENTOS nas vistas ================= */
-const AVULSAS={tampo:{n:'Tampo engrossado (30 mm)',cor:'#8d6e63'},painel:{n:'Painel / peça avulsa',cor:'#607d8b'}};
+const AVULSAS={tampo:{n:'Tampo engrossado (30 mm)',cor:'#8d6e63'},cabeceira:{n:'Painel de cama / cabeceira',cor:'#8d5a3c'},painel:{n:'Painel / peça avulsa',cor:'#607d8b'}};
 const NOME_FITA35=()=>acharInsumo('fita','35')||'Fita de Borda 35 mm (metro)';
 const fitasV=v=>[0,1,2,3].map(i=>v['f'+i]===false?0:1);
 function chapaUtil(){const c=(PRECOS&&PRECOS.chapa)||[2740,1840,10,4];return [c[0]-2*c[2],c[1]-2*c[2]]}
@@ -1975,11 +1975,12 @@ function novaAvulsa(k,wid){const mv=(A.moveis||[]).filter(m=>m.parede===wid&&!eh
     if(mv.length){const d0=Math.min(...mv.map(m=>+m.dist||0)),d1=Math.max(...mv.map(m=>(+m.dist||0)+(+m.larg)));
       Object.assign(v,{dist:d0,comp:d1-d0,prof:Math.max(...mv.map(m=>+m.prof||0))+38,z:Math.max(...mv.map(m=>(+m.z||0)+(+m.alt||0)))})}
     return v}
+  if(k==='cabeceira')return {id:uid(),k,parede:wid,dist:0,larg:2000,alt:1100,esp:15,faixa:70,ma_baixo:150,z:0,eng_esq:false,eng_dir:false,mat:'',nome:''};
   return {id:uid(),k:'painel',parede:wid,dist:0,larg:600,alt:1000,esp:18,z:0,mat:'',nome:''}}
 function avulsaHTML(v,idx){const t=AVULSAS[v.k]||AVULSAS.painel,k='v:'+v.id+':',ch=PRECOS?[...chapasDe('Frente'),...chapasDe('Caixa')]:[];
   const sel=ch.length?`<div><label>Material</label><select data-o="v" data-id="${v.id}" data-f="mat"><option value="">Padrão da frente</option>${ch.map(p=>`<option${v.mat===p.nome?' selected':''}>${esc(p.nome)}</option>`).join('')}</select></div>`:'';
   return `<div class="item" style="--c:${t.cor}">
-  <div class="ih ihm"><span class="num" style="background:${t.cor}">${v.k==='tampo'?'T':'P'}${idx+1}</span>
+  <div class="ih ihm"><span class="num" style="background:${t.cor}">${v.k==='tampo'?'T':v.k==='cabeceira'?'C':'P'}${idx+1}</span>
     <b style="align-self:center">${t.n}</b>
     <select aria-label="Parede" data-o="v" data-id="${v.id}" data-f="parede" data-full="1">${A.paredes.map((w,i)=>`<option value="${w.id}"${w.id===v.parede?' selected':''}>Parede ${LETRAS[i]}</option>`).join('')}</select>
     <button class="ic" data-a="delV" data-id="${v.id}" aria-label="Apagar peça">✕</button></div>
@@ -1994,6 +1995,17 @@ function avulsaHTML(v,idx){const t=AVULSAS[v.k]||AVULSAS.painel,k='v:'+v.id+':',
     <span class="meta">Fita ${v.eng!==false?'35 mm':'comum'} em:</span>${['Frente','Trás','Esquerda','Direita'].map((n,i)=>`<label class="chk"><input type="checkbox" data-o="v" data-id="${v.id}" data-f="f${i}" data-t="b"${v['f'+i]!==false?' checked':''}> ${n}</label>`).join('')}</div>
   ${(()=>{const t=partesTampo(v);return t.nc*t.nd>1?`<div class="pend"><b>Maior que a chapa</b> (${t.uc} × ${t.ul} úteis): vai em <b>${t.nc*t.nd} partes de ${Math.round(t.cp)} × ${Math.round(t.pp)}</b>, com emenda no meio.</div>`:''})()}
   <div class="row wrap"><button data-a="tampoMoveis" data-id="${v.id}">Pegar medidas dos balcões da parede</button></div>`
+  :v.k==='cabeceira'?`<div class="ig">
+    <div><label>Dist. do início</label>${inp('v','dist',v.dist,k+'dist',v.id)}</div>
+    <div><label>Largura</label>${inp('v','larg',v.larg,k+'larg',v.id)}</div>
+    <div><label>Altura</label>${inp('v','alt',v.alt,k+'alt',v.id)}</div>
+    <div><label>Altura do chão</label>${inp('v','z',v.z,k+'z',v.id)}</div>
+    <div><label>Mão amiga de baixo (do pé)</label>${inp('v','ma_baixo',v.ma_baixo,k+'ma_baixo',v.id)}</div>
+    <div><label>Faixa (mão amiga / engrosso)</label>${inp('v','faixa',v.faixa,k+'faixa',v.id)}</div></div>
+  <div class="row wrap"><span class="meta">Lado aparente (engrosso + fita 35 mm):</span>
+    <label class="chk"><input type="checkbox" data-o="v" data-id="${v.id}" data-f="eng_esq" data-t="b"${v.eng_esq?' checked':''}> Esquerdo</label>
+    <label class="chk"><input type="checkbox" data-o="v" data-id="${v.id}" data-f="eng_dir" data-t="b"${v.eng_dir?' checked':''}> Direito</label></div>
+  <p class="dica">Painel de 15 mm; atrás, mão amiga em 2 níveis (parte do painel + parte da parede, 70 mm cada): a de baixo a ${v.ma_baixo} mm do pé e a de cima rente ao topo.</p>`
   :`<div class="ig">
     <div><label>Dist. do início</label>${inp('v','dist',v.dist,k+'dist',v.id)}</div>
     <div><label>Largura</label>${inp('v','larg',v.larg,k+'larg',v.id)}</div>
@@ -2011,9 +2023,13 @@ function pecasAvulsa(v){const out=[],ferr={},mat=v.mat||matPadrao('Frente'),F0=[
     if(v.eng!==false){topo(null);for(let k=0;k<np;k++){add('Engrossado tampo',cp,fx,e,F0);add('Engrossado tampo',cp,fx,e,F0)}add('Engrossado tampo',Pf-2*fx,fx,e,F0);add('Engrossado tampo',Pf-2*fx,fx,e,F0);
       const m=(fl[0]*C+fl[1]*C+fl[2]*Pf+fl[3]*Pf)/1000;if(m)ferr[NOME_FITA35()]=Math.round(m*100)/100}
     else topo(fl)}
+  else if(v.k==='cabeceira'){const Lp=+v.larg||0,H=+v.alt||0,e=+v.esp||15,fx=+v.faixa||70,E=v.eng_esq?1:0,D=v.eng_dir?1:0,mcx=matPadrao('Caixa'),lm=Lp-(E+D)*fx;
+    add('Painel de cabeceira',Lp,H,e,[1,1,E?0:1,D?0:1]);for(let i=0;i<E+D;i++)add('Engrosso lateral do painel',H,fx,e,F0);
+    for(let i=0;i<2;i++){out.push({d:'Mão amiga (parte do painel)',papel:'Caixa',mat:mcx,c:Math.round(lm),l:fx,esp:e,fita:F0,alt:fx,veio:false});out.push({d:'Mão amiga (parte da parede)',papel:'Caixa',mat:mcx,c:Math.round(lm),l:fx,esp:e,fita:F0,alt:fx,veio:false})}
+    const m=(E+D)*H/1000;if(m)ferr[NOME_FITA35()]=Math.round(m*100)/100}
   else add('Painel',+v.alt||0,+v.larg||0,+v.esp||18,[1,1,1,1]);
   return {pecas:out.filter(p=>p.c>0&&p.l>0),ferr}}
-function nomeAvulsa(v){return v.k==='tampo'?`${v.nome?v.nome+' - ':''}tampo ${v.eng!==false?'engrossado '+2*(+v.esp||15)+' mm':(+v.esp||15)+' mm'} ${v.comp} × ${v.prof}`:`${v.nome?v.nome+' - ':''}painel ${v.alt} × ${v.larg} × ${v.esp}`}
+function nomeAvulsa(v){if(v.k==='cabeceira')return `${v.nome?v.nome+' - ':''}painel de cabeceira ${v.larg} × ${v.alt} com mão amiga${v.eng_esq||v.eng_dir?', lado aparente engrossado':''}`;return v.k==='tampo'?`${v.nome?v.nome+' - ':''}tampo ${v.eng!==false?'engrossado '+2*(+v.esp||15)+' mm':(+v.esp||15)+' mm'} ${v.comp} × ${v.prof}`:`${v.nome?v.nome+' - ':''}painel ${v.alt} × ${v.larg} × ${v.esp}`}
 
 // blocos extras de cada parede para as vistas: tamponamentos dos móveis e peças avulsas
 function blocosExtras(a,wid){const L=[],fr=18,mt=2;
@@ -2027,6 +2043,10 @@ function blocosExtras(a,wid){const L=[],fr=18,mt=2;
   (a.avulsas||[]).forEach((v,i)=>{if(v.parede!==wid)return;const t=AVULSAS[v.k]||AVULSAS.painel,cR=corMaterial(v.mat||(PRECOS?matPadrao('Frente'):''),'Frente');
     if(v.k==='tampo'){const e=+v.esp||15,h=v.eng!==false?2*e:e;const pt=partesTampo(v),d0=+v.dist||0;L.push({u0:d0,u1:d0+(+v.comp||0),n0:0,n1:+v.prof||0,z0:+v.z||0,z1:(+v.z||0)+h,cS:t.cor,cR,t:'tampo',rot:'T'+(i+1),eng:v.eng!==false,fx:+v.faixa||70,e,
       emU:Array.from({length:pt.nc-1},(_,k)=>d0+pt.cp*(k+1)),emN:Array.from({length:pt.nd-1},(_,k)=>(+v.prof||0)-pt.pp*(k+1))})}
+    else if(v.k==='cabeceira'){const e=+v.esp||15,fx=+v.faixa||70,d0=+v.dist||0,z0=+v.z||0,Lp=+v.larg||0,H=+v.alt||0,cm='#8d5a3c';
+      L.push({u0:d0,u1:d0+Lp,n0:2*e,n1:3*e,z0,z1:z0+H,cS:t.cor,cR,t:'painel',rot:'C'+(i+1)});
+      for(const zz of [z0+(+v.ma_baixo||150),z0+H-fx])L.push({u0:d0+(v.eng_esq?fx:0),u1:d0+Lp-(v.eng_dir?fx:0),n0:0,n1:2*e,z0:zz,z1:zz+fx,cS:cm,cR:'#8d5a3c',t:'ma'});
+      if(v.eng_esq)L.push({u0:d0,u1:d0+fx,n0:e,n1:2*e,z0,z1:z0+H,cS:t.cor,cR,t:'ma'});if(v.eng_dir)L.push({u0:d0+Lp-fx,u1:d0+Lp,n0:e,n1:2*e,z0,z1:z0+H,cS:t.cor,cR,t:'ma'})}
     else L.push({u0:+v.dist||0,u1:(+v.dist||0)+(+v.larg||0),n0:0,n1:+v.esp||18,z0:+v.z||0,z1:(+v.z||0)+(+v.alt||0),cS:t.cor,cR,t:'painel',rot:'P'+(i+1)})});
   return L}
 // planta: contorno dos tamponamentos e das peças avulsas
@@ -2041,6 +2061,7 @@ function extrasPlanta(a,g,fs,real){let s='';
 // elevação: tamponamentos e peças avulsas de frente
 function extrasElev(a,wid,fs,real){let s='';const Y=z=>-z;
   blocosExtras(a,wid).forEach(b=>{const cor=real?b.cR:b.cS,lw=b.u1-b.u0,h=b.z1-b.z0;
+    if(b.t==='ma'){s+=`<rect x="${b.u0}" y="${Y(b.z1)}" width="${lw}" height="${h}" style="fill:none;stroke:${real?'#5a3a24':b.cS}" stroke-width="1" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;return}
     s+=`<rect x="${b.u0}" y="${Y(b.z1)}" width="${lw}" height="${h}" style="fill:${cor};fill-opacity:${real?1:.45};stroke:${real?'#2a2e33':b.cS}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`;
     if(b.t==='tampo'&&b.eng)s+=`<line x1="${b.u0}" y1="${Y(b.z0+b.e)}" x2="${b.u1}" y2="${Y(b.z0+b.e)}" style="stroke:${real?'#2a2e33':b.cS}" stroke-width=".6" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;
     (b.emU||[]).forEach(u=>{s+=`<line x1="${u}" y1="${Y(b.z1)-fs*.5}" x2="${u}" y2="${Y(b.z0)+fs*.3}" style="stroke:#c62828" stroke-width="1.6" vector-effect="non-scaling-stroke"/><text x="${u}" y="${Y(b.z1)-fs*.7}" font-size="${fs*.45}" text-anchor="middle" style="fill:#c62828" font-weight="700">emenda</text>`});
