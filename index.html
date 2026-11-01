@@ -95,6 +95,10 @@ details summary{cursor:pointer;font-weight:600;padding:4px 0}
 .wrow.sel .lt{color:var(--laser)}
 .quick{display:flex;flex-wrap:wrap;gap:6px}
 .quick button{min-height:40px;padding:6px 10px;font-size:.85rem}
+.setores{flex-wrap:wrap}.setores button{flex:1 1 auto;min-width:96px}
+.modelos-mov{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px}
+.modelos-mov button{display:flex;align-items:center;gap:8px;text-align:left;justify-content:flex-start}
+.modelos-mov span{display:flex;flex-direction:column;line-height:1.2}.modelos-mov small{color:var(--muted);font-weight:400}
 .quick i{width:10px;height:10px;border-radius:50%;display:inline-block}
 .modelos{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .modelo{flex-direction:column;align-items:stretch;text-align:left;gap:4px;padding:10px 12px}
@@ -215,24 +219,8 @@ function dupla(b){if(b.dataset.c){delete b.dataset.c;return true}const o=b.textC
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
 const PLACAS=[['T','1 tomada (4x2)'],['TT','2 tomadas (4x2)'],['TTT','3 tomadas (4x2)'],['I','1 interruptor (4x2)'],['II','2 interruptores (4x2)'],['III','3 interruptores (4x2)'],['IT','1 interruptor + tomada'],['IIT','2 interruptores + tomada'],['ITT','1 interruptor + 2 tomadas'],['TTTT','4 tomadas (4x4)'],['TTTTTT','6 tomadas (4x4)'],['IIITTT','3 interruptores + 3 tomadas (4x4)']];
-const MOVEIS={
-  inferior:{n:'Inferior / balcão',tipo:'inferior',larg:600,alt:870,prof:580,z:0,portas:2,gavetas:0,prats:1,base:1},
-  gabinete:{n:'Gabinete de banheiro',tipo:'inferior',larg:800,alt:870,prof:450,z:0,portas:2,gavetas:0,prats:1,base:1},
-  gaveteiro:{n:'Gaveteiro',tipo:'inferior',larg:500,alt:870,prof:580,z:0,portas:0,gavetas:3,prats:0,base:1},
-  aereo:{n:'Aéreo',tipo:'aereo',larg:600,alt:700,prof:350,z:1500,portas:2,gavetas:0,prats:1,base:0},
-  espelheira:{n:'Espelheira / aéreo raso',tipo:'aereo',larg:800,alt:700,prof:150,z:1200,portas:2,gavetas:0,prats:2,base:0},
-  torre:{n:'Torre / alto',tipo:'torre',larg:600,alt:2200,prof:580,z:0,portas:2,gavetas:0,prats:4,base:1},
-  torre_quente:{n:'Torre quente',tipo:'torre_quente',larg:600,alt:2300,prof:660,z:0,portas:0,gavetas:2,prats:0,base:1},
-  cooktop:{n:'Balcão cooktop',tipo:'cooktop',larg:800,alt:870,prof:580,z:0,portas:0,gavetas:2,prats:0,base:1},
-  canto_l_esq:{n:'Canto L (canto à esquerda)',tipo:'canto_l_esq',larg:900,alt:870,prof:900,z:0,portas:2,gavetas:0,prats:1,base:1},
-  canto_l_dir:{n:'Canto L (canto à direita)',tipo:'canto_l_dir',larg:900,alt:870,prof:900,z:0,portas:2,gavetas:0,prats:1,base:1},
-  canto_reto_esq:{n:'Canto reto (cega à esquerda)',tipo:'canto_reto_esq',larg:1000,alt:870,prof:580,z:0,portas:1,gavetas:0,prats:1,base:1},
-  canto_reto_dir:{n:'Canto reto (cega à direita)',tipo:'canto_reto_dir',larg:1000,alt:870,prof:580,z:0,portas:1,gavetas:0,prats:1,base:1},
-  guarda_roupa:{n:'Guarda-roupa (caixa inteira)',tipo:'guarda_roupa',larg:1000,alt:2400,prof:580,z:0,portas:2,gavetas:2,prats:2,base:1},
-  guarda_roupa_2:{n:'Guarda-roupa em 2 caixas (corpo + maleiro)',tipo:'guarda_roupa_2',larg:1000,alt:2400,prof:580,z:0,portas:2,gavetas:2,prats:2,base:1},
-  canto_l_gr_esq:{n:'Guarda-roupa de canto em L (canto à esquerda)',tipo:'canto_l_gr_esq',larg:1100,alt:2400,prof:1100,z:0,portas:2,gavetas:0,prats:2,base:1},
-  canto_l_gr_dir:{n:'Guarda-roupa de canto em L (canto à direita)',tipo:'canto_l_gr_dir',larg:1100,alt:2400,prof:1100,z:0,portas:2,gavetas:0,prats:2,base:1}
-};
+const MOVEIS={"inferior": {"n": "Balcão / inferior", "tipo": "inferior", "larg": 600, "alt": 870, "prof": 580, "z": 0, "portas": 2, "gavetas": 0, "prats": 1, "base": 1}, "gabinete": {"n": "Gabinete de banheiro", "tipo": "inferior", "larg": 800, "alt": 870, "prof": 450, "z": 0, "portas": 2, "gavetas": 0, "prats": 1, "base": 1}, "gaveteiro": {"n": "Gaveteiro", "tipo": "inferior", "larg": 500, "alt": 870, "prof": 580, "z": 0, "portas": 0, "gavetas": 3, "prats": 0, "base": 1}, "aereo": {"n": "Aéreo", "tipo": "aereo", "larg": 600, "alt": 700, "prof": 350, "z": 1500, "portas": 2, "gavetas": 0, "prats": 1, "base": 0}, "espelheira": {"n": "Espelheira / aéreo raso", "tipo": "aereo", "larg": 800, "alt": 700, "prof": 150, "z": 1200, "portas": 2, "gavetas": 0, "prats": 2, "base": 0}, "torre": {"n": "Torre / alto", "tipo": "torre", "larg": 600, "alt": 2200, "prof": 580, "z": 0, "portas": 2, "gavetas": 0, "prats": 4, "base": 1}, "torre_quente": {"n": "Torre quente", "tipo": "torre_quente", "larg": 600, "alt": 2300, "prof": 660, "z": 0, "portas": 0, "gavetas": 2, "prats": 0, "base": 1}, "cooktop": {"n": "Balcão cooktop", "tipo": "cooktop", "larg": 800, "alt": 870, "prof": 580, "z": 0, "portas": 0, "gavetas": 2, "prats": 0, "base": 1}, "canto_l_esq": {"n": "Canto L de balcão (canto à esquerda)", "tipo": "canto_l_esq", "larg": 900, "alt": 870, "prof": 900, "z": 0, "portas": 2, "gavetas": 0, "prats": 1, "base": 1}, "canto_l_dir": {"n": "Canto L de balcão (canto à direita)", "tipo": "canto_l_dir", "larg": 900, "alt": 870, "prof": 900, "z": 0, "portas": 2, "gavetas": 0, "prats": 1, "base": 1}, "canto_reto_esq": {"n": "Canto reto (cega à esquerda)", "tipo": "canto_reto_esq", "larg": 1000, "alt": 870, "prof": 580, "z": 0, "portas": 1, "gavetas": 0, "prats": 1, "base": 1}, "canto_reto_dir": {"n": "Canto reto (cega à direita)", "tipo": "canto_reto_dir", "larg": 1000, "alt": 870, "prof": 580, "z": 0, "portas": 1, "gavetas": 0, "prats": 1, "base": 1}, "guarda_roupa": {"n": "Guarda-roupa (caixa inteira)", "tipo": "guarda_roupa", "larg": 1000, "alt": 2400, "prof": 580, "z": 0, "portas": 2, "gavetas": 2, "prats": 2, "base": 1}, "guarda_roupa_2": {"n": "Guarda-roupa em 2 caixas (corpo + maleiro)", "tipo": "guarda_roupa_2", "larg": 1000, "alt": 2400, "prof": 580, "z": 0, "portas": 2, "gavetas": 2, "prats": 2, "base": 1}, "canto_l_gr_esq": {"n": "Guarda-roupa de canto L (canto à esquerda)", "tipo": "canto_l_gr_esq", "larg": 1100, "alt": 2400, "prof": 1100, "z": 0, "portas": 2, "gavetas": 0, "prats": 2, "base": 1}, "canto_l_gr_dir": {"n": "Guarda-roupa de canto L (canto à direita)", "tipo": "canto_l_gr_dir", "larg": 1100, "alt": 2400, "prof": 1100, "z": 0, "portas": 2, "gavetas": 0, "prats": 2, "base": 1}, "aereo_canto_esq": {"n": "Aéreo de canto L (canto à esquerda)", "tipo": "canto_l_esq", "larg": 700, "alt": 700, "prof": 700, "z": 1500, "portas": 2, "gavetas": 0, "prats": 1, "base": 0, "superior": 1, "prof_caixa": 350}, "aereo_canto_dir": {"n": "Aéreo de canto L (canto à direita)", "tipo": "canto_l_dir", "larg": 700, "alt": 700, "prof": 700, "z": 1500, "portas": 2, "gavetas": 0, "prats": 1, "base": 0, "superior": 1, "prof_caixa": 350}, "comoda": {"n": "Cômoda", "tipo": "inferior", "larg": 1000, "alt": 800, "prof": 450, "z": 0, "portas": 0, "gavetas": 4, "prats": 0, "base": 1}, "criado": {"n": "Criado-mudo", "tipo": "inferior", "larg": 450, "alt": 550, "prof": 400, "z": 0, "portas": 0, "gavetas": 2, "prats": 0, "base": 1}, "sapateira": {"n": "Sapateira", "tipo": "torre", "larg": 600, "alt": 1800, "prof": 350, "z": 0, "portas": 2, "gavetas": 0, "prats": 6, "base": 1}, "aereo_dorm": {"n": "Aéreo / maleiro sobre a cama", "tipo": "aereo", "larg": 1000, "alt": 450, "prof": 450, "z": 1900, "portas": 2, "gavetas": 0, "prats": 0, "base": 0}, "gabinete_susp": {"n": "Gabinete suspenso", "tipo": "inferior", "larg": 800, "alt": 500, "prof": 450, "z": 350, "portas": 2, "gavetas": 0, "prats": 0, "base": 0}, "torre_banho": {"n": "Torre de banheiro", "tipo": "torre", "larg": 400, "alt": 1800, "prof": 300, "z": 0, "portas": 1, "gavetas": 0, "prats": 4, "base": 1}, "rack": {"n": "Rack", "tipo": "inferior", "larg": 1800, "alt": 500, "prof": 450, "z": 0, "portas": 2, "gavetas": 0, "prats": 0, "base": 3}, "estante": {"n": "Estante / nicho alto", "tipo": "torre", "larg": 800, "alt": 2000, "prof": 350, "z": 0, "portas": 0, "gavetas": 0, "prats": 5, "base": 1}, "nicho": {"n": "Nicho aéreo", "tipo": "aereo", "larg": 600, "alt": 300, "prof": 300, "z": 1400, "portas": 0, "gavetas": 0, "prats": 0, "base": 0}, "gav_escritorio": {"n": "Gaveteiro de escritório", "tipo": "inferior", "larg": 400, "alt": 720, "prof": 500, "z": 0, "portas": 0, "gavetas": 3, "prats": 0, "base": 2}, "balcao_tanque": {"n": "Balcão do tanque", "tipo": "inferior", "larg": 800, "alt": 870, "prof": 580, "z": 0, "portas": 2, "gavetas": 0, "prats": 0, "base": 1}, "aereo_lav": {"n": "Aéreo de lavanderia", "tipo": "aereo", "larg": 800, "alt": 700, "prof": 350, "z": 1600, "portas": 2, "gavetas": 0, "prats": 1, "base": 0}, "torre_vassoura": {"n": "Torre de vassoura", "tipo": "torre", "larg": 500, "alt": 2200, "prof": 580, "z": 0, "portas": 1, "gavetas": 0, "prats": 3, "base": 1}};
+const SETORES=[{"id": "cozinha", "n": "Cozinha", "itens": ["inferior", "gaveteiro", "cooktop", "torre", "torre_quente", "aereo", "canto_l_esq", "canto_l_dir", "canto_reto_esq", "canto_reto_dir", "aereo_canto_esq", "aereo_canto_dir"]}, {"id": "dormitorio", "n": "Dormitório", "itens": ["guarda_roupa", "guarda_roupa_2", "canto_l_gr_esq", "canto_l_gr_dir", "comoda", "criado", "sapateira", "aereo_dorm"]}, {"id": "banheiro", "n": "Banheiro", "itens": ["gabinete", "gabinete_susp", "espelheira", "torre_banho", "gaveteiro"]}, {"id": "sala", "n": "Sala / escritório", "itens": ["rack", "estante", "nicho", "gav_escritorio", "aereo"]}, {"id": "lavanderia", "n": "Lavanderia", "itens": ["balcao_tanque", "aereo_lav", "torre_vassoura", "canto_l_esq", "canto_l_dir"]}, {"id": "todos", "n": "Todos", "itens": ["inferior", "gabinete", "gaveteiro", "aereo", "espelheira", "torre", "torre_quente", "cooktop", "canto_l_esq", "canto_l_dir", "canto_reto_esq", "canto_reto_dir", "guarda_roupa", "guarda_roupa_2", "canto_l_gr_esq", "canto_l_gr_dir", "aereo_canto_esq", "aereo_canto_dir", "comoda", "criado", "sapateira", "aereo_dorm", "gabinete_susp", "torre_banho", "rack", "estante", "nicho", "gav_escritorio", "balcao_tanque", "aereo_lav", "torre_vassoura"]}];
 const BASES=['Nenhuma (direto no chão)','Rodapé','Rodízio','Pés parafusados','Pé nivelador + saia'];
 const ehAereo=m=>m.tipo==='aereo'||(+m.z||0)>=1000;
 const TIPOS={
@@ -438,7 +426,7 @@ function movelHTML(m,idx){const k='m:'+m.id+':',c=corMovel(m);
   return `<div class="item" style="--c:${c}">
   <div class="ih ihm">
     <span class="num" style="background:${c}" title="Móvel ${idx+1}">M${idx+1}</span>
-    <select aria-label="Tipo de móvel" data-o="m" data-id="${m.id}" data-f="k" data-full="1">${Object.entries(MOVEIS).map(([kk,t])=>`<option value="${kk}"${kk===m.k?' selected':''}>${t.n}</option>`).join('')}</select>
+    <select aria-label="Tipo de móvel" data-o="m" data-id="${m.id}" data-f="k" data-full="1">${(()=>{const vis=new Set;return SETORES.filter(x=>x.id!=='todos').map(st=>`<optgroup label="${st.n}">${st.itens.filter(k=>!vis.has(k)&&vis.add(k)).map(kk=>`<option value="${kk}"${kk===m.k?' selected':''}>${MOVEIS[kk].n}</option>`).join('')}</optgroup>`).join('')+`<optgroup label="Outros">${Object.keys(MOVEIS).filter(k=>!vis.has(k)).map(kk=>`<option value="${kk}"${kk===m.k?' selected':''}>${MOVEIS[kk].n}</option>`).join('')}</optgroup>`})()}</select>
     <select aria-label="Parede" data-o="m" data-id="${m.id}" data-f="parede" data-full="1">${A.paredes.map((w,i)=>`<option value="${w.id}"${w.id===m.parede?' selected':''}>Parede ${LETRAS[i]}</option>`).join('')}</select>
     <button class="ic" data-a="delM" data-id="${m.id}" aria-label="Apagar móvel">✕</button>
   </div>
@@ -501,8 +489,8 @@ function telaAmb(){
     <p class="dica">Distância a partir do canto <b>esquerdo</b> da parede, olhando de frente. Altura sempre a partir do piso.</p>
     <div class="itens">${A.itens.map(itemHTML).join('')||'<p class="meta">Nenhum ponto ainda. Toque numa parede da planta e escolha o tipo acima.</p>'}</div>
     <div class="bar"><h3>Móveis</h3><span class="meta">adicionar na parede <b>${letra(selW)}</b></span></div>
-    <div class="quick">${Object.entries(MOVEIS).map(([k,t])=>`<button data-a="addM" data-f="${k}"><i style="background:${corMovel({k})}"></i>${t.n}</button>`).join('')}</div>
-    <p class="dica">Mesmos móveis da bancada do FreeCAD. Distância a partir do início da parede até a lateral esquerda do móvel. Um novo móvel entra encostado no último da mesma parede.</p>
+    ${setoresHTML()}
+    <p class="dica">Escolha o ambiente e o modelo. Todos usam as mesmas caixas da bancada do FreeCAD (mesma regra de construção); só mudam as medidas e opções de partida. Distância a partir do início da parede até a lateral esquerda do móvel.</p>
     <div class="itens">${(A.moveis||[]).map(movelHTML).join('')||'<p class="meta">Nenhum móvel ainda.</p>'}</div>
     <div class="bar"><h3>Peças avulsas</h3><span class="meta">tampos e painéis, separados das caixas · parede <b>${letra(selW)}</b></span></div>
     <div class="quick">${Object.entries(AVULSAS).map(([k,t])=>`<button data-a="addV" data-f="${k}"><i style="background:${t.cor}"></i>${t.n}</button>`).join('')}</div>
@@ -2131,6 +2119,25 @@ function blocosCanto(m){const c=cantoL(m),d0=+m.dist||0,fr=18;const B=[];
   else{B.push({u0:d0,u1:d0+c.LA,n0:0,n1:c.P1-fr,t:'cx'},{u0:d0+c.LA-c.P2+fr,u1:d0+c.LA,n0:c.P1-fr,n1:c.LB,t:'cx'},{u0:d0,u1:d0+c.LA-c.P2,n0:c.P1-fr,n1:c.P1,t:'pt'},{u0:d0+c.LA-c.P2,u1:d0+c.LA-c.P2+fr,n0:c.P1,n1:c.LB,t:'pt'})}
   return B}
 
+/* ================= SETORES (abas por ambiente) ================= */
+let setorAmb={};
+function setorPadrao(a){const n=(a&&a.nome||'').toLowerCase();
+  if(/cozinha|gourmet|copa|churrasq/.test(n))return 'cozinha';if(/quarto|su[ií]te|dormit|closet/.test(n))return 'dormitorio';
+  if(/wc|banh|lavabo/.test(n))return 'banheiro';if(/sala|office|escrit|estar|tv/.test(n))return 'sala';if(/lavand|servi/.test(n))return 'lavanderia';return 'todos'}
+const setorDe=a=>setorAmb[a.id]||setorPadrao(a);
+const camposModelo=pr=>{const {n,...r}=pr;return r};
+function iconeMovel(pr){const W=34,H=30,esc=26/2400,w=Math.max(6,Math.min(30,pr.larg*esc*1.6)),h=Math.max(5,pr.alt*esc),ae=ehAereo(pr),x=(W-w)/2,y=ae?3:H-2-h;
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1" fill="${corMovel(pr)}" fill-opacity=".25" stroke="${corMovel(pr)}" stroke-width="1.4"/>`;
+  const p=+pr.portas||0,g=+pr.gavetas||0,gr=/guarda_roupa|_gr_/.test(pr.tipo);
+  if(g&&!gr){const hg=p?Math.min(h*.4,g*3):h;for(let k=1;k<=g;k++)s+=`<line x1="${x}" x2="${x+w}" y1="${y+hg*k/g}" y2="${y+hg*k/g}" stroke="${corMovel(pr)}" stroke-width=".9"/>`}
+  if(p>1)s+=`<line x1="${x+w/2}" x2="${x+w/2}" y1="${y}" y2="${y+h}" stroke="${corMovel(pr)}" stroke-width=".9"/>`;
+  if(pr.tipo==='guarda_roupa_2')s+=`<line x1="${x}" x2="${x+w}" y1="${y+h*.18}" y2="${y+h*.18}" stroke="${corMovel(pr)}" stroke-width=".9"/>`;
+  if(/^canto_/.test(pr.tipo))s+=`<path d="M${x} ${y} L${x+w*.4} ${y} L${x+w*.4} ${y+h}" fill="${corMovel(pr)}" fill-opacity=".35"/>`;
+  return s+'</svg>'}
+function setoresHTML(){const sa=setorDe(A),st=SETORES.find(x=>x.id===sa)||SETORES[SETORES.length-1];
+  return `<div class="abas setores" role="tablist">${SETORES.map(x=>`<button role="tab" data-a="setor" data-f="${x.id}"${x.id===sa?' class="on" aria-selected="true"':''}>${x.n}</button>`).join('')}</div>
+  <div class="quick modelos-mov">${st.itens.map(k=>{const t=MOVEIS[k];return t?`<button data-a="addM" data-f="${k}" title="${esc(t.n)} · ${t.larg} × ${t.alt} × ${t.prof}">${iconeMovel(t)}<span>${t.n}<small>${t.larg} × ${t.alt} × ${t.prof}</small></span></button>`:''}).join('')}</div>`}
+
 /* ================= eventos ================= */
 function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id);if(o==='v')return (A.avulsas||[]).find(v=>v.id===id)}
 document.addEventListener('click',async e=>{
@@ -2157,10 +2164,11 @@ document.addEventListener('click',async e=>{
       const mesmo=A.moveis.filter(x=>x.parede===w&&ehAereo(x)===ehAereo(pr));
       const dist=mesmo.reduce((mx,x)=>Math.max(mx,(+x.dist||0)+(+x.larg||0)+(+x.tamp_dir?18:0)),0);
       let dist_=dist;if(/^canto_l/.test(pr.tipo)){const pw=A.paredes.find(x=>x.id===w),Lw=pw&&(pw.L||pw.Lp);dist_=/_dir$/.test(pr.tipo)?Math.max(0,(Lw||pr.larg)-pr.larg):0}
-      const m={id:uid(),k:f,tipo:pr.tipo,parede:w,dist:dist_,larg:pr.larg,alt:pr.alt,prof:pr.prof,z:pr.z,portas:pr.portas,gavetas:pr.gavetas,prats:pr.prats,base:pr.base,nome:''};
+      const m={id:uid(),k:f,...camposModelo(pr),parede:w,dist:dist_,nome:''};
       A.moveis.push(m);salvar();alvoKey='m:'+m.id+':larg';render();
       const el=document.querySelector(`[data-k="${CSS.escape(alvoKey)}"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
       toast(`${pr.n} na parede ${letra(w)}, a ${dist_} mm do início`);break;}
+    case 'setor':setorAmb[A.id]=f;render();break;
     case 'addV':{if(!A.paredes.length){toast('Adicione uma parede primeiro');return}if(!A.avulsas)A.avulsas=[];
       const v=novaAvulsa(f,selW||A.paredes[0].id);A.avulsas.push(v);salvar();render();
       const el=document.querySelector(`[data-k="v:${v.id}:comp"],[data-k="v:${v.id}:larg"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
@@ -2230,7 +2238,7 @@ document.addEventListener('change',async e=>{
   const o=el.dataset.o;if(!o)return;const t=obj(o,el.dataset.id);if(!t)return;
   let v=el.value;if(el.dataset.t==='b')v=el.checked;else if(el.dataset.t==='n'){v=v.trim()===''?null:num(v);if(v!=null)v=Math.round(v)}
   t[el.dataset.f]=v;salvar();
-  if(o==='m'&&el.dataset.f==='k'&&MOVEIS[v]){const pr=MOVEIS[v];Object.assign(t,{tipo:pr.tipo,larg:pr.larg,alt:pr.alt,prof:pr.prof,z:pr.z,portas:pr.portas,gavetas:pr.gavetas,prats:pr.prats,base:pr.base});salvar()}
+  if(o==='m'&&el.dataset.f==='k'&&MOVEIS[v]){const pr=MOVEIS[v];delete t.superior;delete t.prof_caixa;Object.assign(t,camposModelo(pr));salvar()}
   if(el.dataset.full)render();else if(view==='amb')parcial();
   if(view==='amb'&&o==='w')atualizarSobras();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
 });
