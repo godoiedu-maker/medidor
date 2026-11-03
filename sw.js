@@ -1,6 +1,6 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Com internet: busca a versão nova e atualiza a cópia. Sem internet: usa a cópia guardada.
-const CACHE = 'medidor-glm-v22';
+const CACHE = 'medidor-glm-v23';
 const ARQUIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

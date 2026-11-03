@@ -35,6 +35,7 @@ body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--body);-webkit-tap
 .ult.flash{background:var(--laser);color:#fff}
 .ic{background:transparent;border:0;color:inherit;font-size:1.3rem;min-width:44px;min-height:44px;border-radius:8px;cursor:pointer}
 .btchip{display:flex;align-items:center;gap:6px;background:#ffffff14;color:var(--top-fg);border:0;border-radius:999px;padding:8px 12px;font:600 .85rem var(--body);min-height:40px;cursor:pointer}
+.prow{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}.prow .pnome{flex:1;min-width:0}.prow input{width:120px;flex:none}.prow.ok input{border-color:var(--ok)}.pgrupo{border:1px solid var(--line);border-radius:10px;padding:6px 12px;background:var(--panel)}.pgrupo summary{cursor:pointer;padding:6px 0}
 .ic.sy{font-size:1.15rem;opacity:.55;min-width:36px}.ic.sy[data-st=ok]{opacity:1;color:#3bdc8f}.ic.sy[data-st=busy]{opacity:1;color:#e3a640}.ic.sy[data-st=erro]{opacity:1;color:#ff6a52}
 .btchip .dot{width:10px;height:10px;border-radius:50%;background:#7c8a84}
 .btchip.on .dot{background:#3bdc8f;box-shadow:0 0 0 3px #3bdc8f40}
@@ -177,6 +178,7 @@ pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;backgrou
   <button data-a="mTodos">Procurar todos os aparelhos</button>
   <button data-a="mDesc">Desconectar trena</button>
   <button data-a="mSync">Sincronizar aparelhos</button>
+  <button data-a="mPrecos">Tabela de preços (editar)</button>
   <button data-a="carregarPrecos">Carregar preços (do FreeCAD)</button>
   <button data-a="mAjuda">Como usar e exportar</button>
   <button data-a="mDiag">Diagnóstico do Bluetooth</button>
@@ -351,6 +353,7 @@ function render(){
   else if(view==='diag')m.innerHTML=telaDiag();
   else if(view==='ajuda')m.innerHTML=telaAjuda();
   else if(view==='sync')m.innerHTML=telaSync();
+  else if(view==='precos')m.innerHTML=telaPrecos();
   else if(view==='orc')m.innerHTML=telaOrc();
   else if(view==='modelo')m.innerHTML=telaModelo();
   else if(view==='desenho'){m.innerHTML=telaDesenho();ligarPad()}
@@ -500,6 +503,10 @@ function telaAmb(){
     <div class="quick">${Object.entries(AVULSAS).map(([k,t])=>`<button data-a="addV" data-f="${k}"><i style="background:${t.cor}"></i>${t.n}</button>`).join('')}</div>
     <p class="dica">O tampo entra com a medida geral (pode cobrir vários balcões). Ao criar, ele já pega o comprimento, a profundidade (+38 mm de frente e avanço) e a altura dos balcões da parede.</p>
     <div class="itens">${(A.avulsas||[]).map(avulsaHTML).join('')||'<p class="meta">Nenhuma peça avulsa.</p>'}</div>
+    <div class="bar"><h3>Eletros e objetos</h3><span class="meta">só para ver no desenho · parede <b>${letra(selW)}</b></span></div>
+    <div class="quick">${Object.entries(OBJETOS).map(([k,t])=>`<button data-a="addJ" data-f="${k}"><i style="background:${t.cor}"></i>${t.n}</button>`).join('')}</div>
+    <p class="dica">Geladeira, fogão, cuba, torneira, vaso, TV, móveis soltos... Mude as medidas à vontade. Não entram no corte nem no orçamento.</p>
+    <div class="itens">${(A.objetos||[]).map(objetoHTML).join('')||'<p class="meta">Nenhum objeto.</p>'}</div>
     <div class="bar"><h3>Fotos do ambiente</h3>${fotoBtn('a',A.id)}</div>
     ${A.fotos.length?`<div class="thumbs">${A.fotos.map(f=>`<img data-foto="${f}" data-a="verFoto" data-id="${f}" data-dono="amb" alt="Foto do ambiente">`).join('')}</div>`:''}
     <div><label for="ao">Observações</label><textarea id="ao" data-o="a" data-f="obs" rows="3" placeholder="Ex.: parede B com prumo ruim, piso vai trocar">${esc(A.obs)}</textarea></div>
@@ -1145,7 +1152,7 @@ let PRECOS=null;
 async function carregarPrecosSalvos(){try{const r=await dbGet('config','precos');if(r)PRECOS=r.dados}catch(e){}}
 async function importarPrecos(file){if(!file)return;
   try{const d=JSON.parse(await file.text());if(d.app!=='medidor-glm-precos')throw new Error('não é o arquivo de preços da bancada');
-    PRECOS=d;await dbPut('config',{id:'precos',dados:d});render();toast(`Preços carregados (${d.gerado}): ${d.precos.length} itens`,3500)}
+    d.recebido=Date.now();PRECOS=mesclarPrecos(PRECOS,d);PRECOS.alterado=Date.now();await dbPut('config',{id:'precos',dados:PRECOS});if(typeof agendarSync==='function')agendarSync(2000);render();toast(`Preços carregados (${d.gerado}): ${d.precos.length} itens`,3500)}
   catch(e){toast('Não consegui carregar os preços: '+e.message,4500)}}
 
 const pdv=(k,def)=>{const v=PRECOS&&PRECOS.padroes?PRECOS.padroes[k]:undefined;return v===undefined||v===null||v===''?def:(typeof def==='number'?+v:v)};
@@ -1328,7 +1335,7 @@ function telaOrc(){
   const o=ORC,prm=o.prm,materiaisCaixa=chapasDe('Caixa'),materiaisFrente=chapasDe('Frente');
   return `<section class="stack">
   <div class="pend ok bk"><div><b>Preços de ${esc(PRECOS.gerado)}</b><br><span class="meta">${PRECOS.precos.length} itens da sua Tabela de Preços + ferragens FGV</span></div><button data-a="carregarPrecos">Atualizar preços</button></div>
-  ${o.faltando.length?`<div class="pend"><b>Itens com preço zerado na sua planilha (Precos_Ferragens_FGV / Tabela de Preços):</b> ${o.faltando.map(esc).join('; ')}</div>`:''}
+  ${o.faltando.length?`<div class="pend"><b>Itens com preço zerado na sua planilha (Precos_Ferragens_FGV / Tabela de Preços):</b> ${o.faltando.map(esc).join('; ')}<div><button data-a="mPrecos">Preencher os preços agora</button></div></div>`:''}
   ${o.emendas.length?`<div class="pend"><b>Peças maiores que a chapa (${chapaUtil().join(' × ')} úteis) foram divididas com emenda no meio:</b> ${o.emendas.map(esc).join('; ')}</div>`:''}
   ${o.itens.some(i=>i.aprox)?`<div class="pend"><b>Atenção:</b> torre quente, cooktop e cantos foram calculados como caixa comum. Confira esses no FreeCAD.</div>`:''}
   <div class="grid2">${PARAMS_UI.map(([k,n,st])=>`<div><label>${n}</label><input type="number" step="${st}" inputmode="decimal" data-o="orc" data-f="${k}" value="${prm[k]??''}"></div>`).join('')}</div>
@@ -1655,6 +1662,15 @@ function cena3D(a){const g=geo(a),H=PEmax(a),faces=[],caixas=[],pontos=[];
   return {g,H,faces,caixas,pontos}}
 
 // ---------------- 3D: paredes com espessura, móveis com peças, portas e janelas modeladas
+// ordem de pintura sem "piscar": caixas separadas num eixo são desenhadas da mais longe para a mais perto da câmera
+function ordemPintor(L,cam){const n=L.length;if(n<2)return L.slice();const ad=L.map(()=>[]),gr=new Array(n).fill(0),eps=.5;
+  const rel=(a,b)=>{for(let k=0;k<3;k++){if(a.mx[k]<=b.mn[k]+eps)return cam[k]>(a.mx[k]+b.mn[k])/2?-1:1;if(b.mx[k]<=a.mn[k]+eps)return cam[k]>(b.mx[k]+a.mn[k])/2?1:-1}return 0};
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const r=rel(L[i],L[j]);if(r<0){ad[i].push(j);gr[j]++}else if(r>0){ad[j].push(i);gr[i]++}}
+  const out=[],usado=new Array(n).fill(false);let pr=[];for(let i=0;i<n;i++)if(!gr[i])pr.push(i);
+  while(pr.length){let k=0;for(let t=1;t<pr.length;t++)if(L[pr[t]].d>L[pr[k]].d)k=t;const u=pr.splice(k,1)[0];out.push(L[u]);usado[u]=true;for(const v of ad[u])if(--gr[v]===0)pr.push(v)}
+  if(out.length<n)L.map((x,i)=>[x,i]).filter(([x,i])=>!usado[i]).sort((a,b)=>b[0].d-a[0].d).forEach(([x])=>out.push(x));
+  return out}
+
 function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBoundingClientRect(),dpr=devicePixelRatio||1;
   if(cv.width!==Math.round(r.width*dpr)||cv.height!==Math.round(r.height*dpr)){cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr)}
   const ctx=cv.getContext('2d'),W=cv.width,Hc=cv.height,T=ESP_PAREDE;
@@ -1681,6 +1697,11 @@ function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBo
       [[Q(u0,n0,z1),Q(u0,n1,z1),Q(u1,n1,z1),Q(u1,n0,z1)],[0,0,1]],[[Q(u0,n0,z0),Q(u1,n0,z0),Q(u1,n1,z0),Q(u0,n1,z0)],[0,0,-1]]];
     for(const [pts,nv] of F){const c=pts.reduce((s,p)=>[s[0]+p[0]/4,s[1]+p[1]/4,s[2]+p[2]/4],[0,0,0]);if(vis(nv,c))face(pts,cor,nv,o)}};
   const prof=(w,u0,u1,n0,n1,z0,z1)=>prj(P3(w,(u0+u1)/2,(n0+n1)/2,(z0+z1)/2))[2];
+  const camM=cam.persp?C:[cx-cd[0]*1e7,cy-cd[1]*1e7,cz-cd[2]*1e7];
+  const camW=w=>{const dx=camM[0]-w.ax,dy=camM[1]-w.ay;return [dx*w.ux+dy*w.uy,dx*w.ix+dy*w.iy,camM[2]]};
+  const bbW=(w,u0,u1,n0,n1,z0,z1)=>{const ps=[];for(const u of [u0,u1])for(const nn of [n0,n1])for(const z of [z0,z1])ps.push(P3(w,u,nn,z));
+    return {mn:[0,1,2].map(k=>Math.min(...ps.map(q=>q[k]))),mx:[0,1,2].map(k=>Math.max(...ps.map(q=>q[k])))}};
+  const ordemLocal=(w,L)=>ordemPintor(L.map(b=>({b,mn:[b[0],b[2],b[4]],mx:[b[1],b[3],b[5]],d:prof(w,...b.slice(0,6))})),camW(w));
   // modelos de porta e janela dentro do vão
   const pecasAbertura=(w,it,o)=>{const L=[],lw=o.u1-o.u0;
     if(it.tipo==='janela'){const fw=45,nm=-T/2;L.push([o.u0-40,o.u1+40,-T-15,30,o.z0-25,o.z0,'#d8d4cc']);
@@ -1716,7 +1737,7 @@ function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBo
     if(!fech&&pw.i===0)face([P3(w,0,0,0),P3(w,0,0,h0),P3(w,-e0,-T,h0),P3(w,-e0,-T,0)],cor,U.map(v=>-v),op);
     if(!fech&&pw.i===n-1)face([P3(w,L,0,0),P3(w,L+e1,-T,0),P3(w,L+e1,-T,h1),P3(w,L,0,h1)],cor,U,op)};
   const desenhaAberturas=(pw,tr)=>{const L=[];pw.abs.forEach(({it,o})=>pecasAbertura(pw.w,it,o).forEach(b=>L.push(b)));pw.its.filter(x=>x.tipo==='viga').forEach(x=>{const o=aberturaDim(x,H);L.push([o.u0,o.u1,0,250,o.z0,o.z1,'#b7b0c4'])});
-    L.map(b=>({b,d:prof(pw.w,...b.slice(0,6))})).sort((p,q)=>q.d-p.d).forEach(({b})=>caixa(pw.w,...b.slice(0,6),b[6],b[7]==='vidro'?{alpha:tr?.2:.5,la:.6}:(tr?{alpha:.22,la:.4}:{})))};
+    ordemLocal(pw.w,L).forEach(({b})=>caixa(pw.w,...b.slice(0,6),b[6],b[7]==='vidro'?{alpha:tr?.2:.5,la:.6}:(tr?{alpha:.22,la:.4}:{})))};
   const longe=paredes.filter(p=>p.dentro).map(p=>({p,d:prj(P3(p.w,p.w.L/2,0,H/2))[2]})).sort((a,b)=>b.d-a.d).map(x=>x.p),perto=paredes.filter(p=>!p.dentro);
   longe.forEach(p=>{desenhaParede(p,false);desenhaAberturas(p)});
   // móveis: peças de verdade (laterais, base, topo, fundo, prateleiras, portas, gavetas, rodapé, puxadores)
@@ -1724,12 +1745,15 @@ function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBo
     return {m,mi,w,u0,u1,z0,pr,d:prof(w,u0,u1,0,pr,z0,z0+(+m.alt))}}).filter(Boolean);
   const exs=[];g.ws.forEach((w,i)=>blocosExtras(A,A.paredes[i].id).forEach(b=>{let d=prof(w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1);
     if(b.t==='tampo'){const sob=mov.filter(x=>x.w===w&&x.z0+(+x.m.alt)<=b.z0+5&&x.u1>b.u0&&x.u0<b.u1);if(sob.length)d=Math.min(...sob.map(x=>x.d))-1}exs.push({ex:b,w,d})}));
-  for(const x of [...mov,...exs].sort((a,b)=>b.d-a.d)){if(x.ex){const b=x.ex;caixa(x.w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1,b.cR,{lw:.8});
+  const caixaDe=x=>{if(x.ex){const b=x.ex;return bbW(x.w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1)}const m=x.m;
+    if(cantoL(m)){const bs=blocosCanto(m);return bbW(x.w,Math.min(...bs.map(b=>b.u0)),Math.max(...bs.map(b=>b.u1)),Math.min(...bs.map(b=>b.n0)),Math.max(...bs.map(b=>b.n1)),x.z0,x.z0+(+m.alt))}
+    return bbW(x.w,x.u0,x.u1,0,x.pr+22,x.z0,x.z0+(+m.alt))};
+  for(const x of ordemPintor([...mov,...exs].map(x=>Object.assign(x,caixaDe(x))),camM)){if(x.ex){const b=x.ex;caixa(x.w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1,b.cR,{lw:.8});
       (b.emU||[]).forEach(u=>{const q1=prj(P3(x.w,u,b.n0,b.z1+1)),q2=prj(P3(x.w,u,b.n1,b.z1+1));ctx.beginPath();ctx.moveTo(q1[0],q1[1]);ctx.lineTo(q2[0],q2[1]);ctx.strokeStyle='#c62828';ctx.lineWidth=1.4*dpr;ctx.setLineDash([5*dpr,3*dpr]);ctx.stroke();ctx.setLineDash([])});
       if(b.t==='tampo'&&b.eng){const q1=prj(P3(x.w,b.u0,b.n1+1,b.z0+b.e)),q2=prj(P3(x.w,b.u1,b.n1+1,b.z0+b.e));ctx.beginPath();ctx.moveTo(q1[0],q1[1]);ctx.lineTo(q2[0],q2[1]);ctx.strokeStyle='rgba(40,40,40,.35)';ctx.lineWidth=.7*dpr;ctx.stroke()}continue}
     if(cantoL(x.m)){const {m,w,z0}=x,{cx:cc,fr}=coresMovel(m),f=paineisFrente(m),zt=z0+(+m.alt);
       if(f.rod)blocosCanto(m).filter(b=>b.t==='cx').forEach(b=>caixa(w,b.u0+20,b.u1-20,b.n0,Math.max(b.n0+10,b.n1-40),z0,z0+f.rod,'#3b3d40',{lw:.8}));
-      blocosCanto(m).sort((a,b)=>prof(w,b.u0,b.u1,b.n0,b.n1,z0,zt)-prof(w,a.u0,a.u1,a.n0,a.n1,z0,zt)).forEach(b=>caixa(w,b.u0,b.u1,b.n0,b.n1,z0+(b.t==='cx'?f.rod:f.rod+2),zt-(b.t==='pt'?2:0),b.t==='pt'?fr:cc,{lw:.8}));
+      ordemPintor(blocosCanto(m).map(b=>({...b,mn:[b.u0,b.n0,z0],mx:[b.u1,b.n1,zt],d:prof(w,b.u0,b.u1,b.n0,b.n1,z0,zt)})),camW(w)).forEach(b=>caixa(w,b.u0,b.u1,b.n0,b.n1,z0+(b.t==='cx'?f.rod:f.rod+2),zt-(b.t==='pt'?2:0),b.t==='pt'?fr:cc,{lw:.8}));
       const q=prj(P3(w,(x.u0+x.u1)/2,(+m.prof_caixa||580)+30,z0+(+m.alt)/2)),c=corMovel(m);ctx.beginPath();ctx.arc(q[0],q[1],11*dpr,0,7);ctx.fillStyle=c;ctx.fill();ctx.lineWidth=1.5*dpr;ctx.strokeStyle='#fff';ctx.stroke();
       ctx.fillStyle='#fff';ctx.font=`800 ${9.5*dpr}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('M'+(x.mi+1),q[0],q[1]+.5);ctx.textBaseline='alphabetic';continue}
     const {m,w,u0,u1,z0,pr}=x,f=paineisFrente(m),{cx:cc,fr}=coresMovel(m),e=15,ft=18,nf=f.pan.length?pr-ft:pr,zb0=z0+f.rod,zb1=z0+(+m.alt),P=[];
@@ -1738,7 +1762,7 @@ function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBo
     const k=+m.prats||0;for(let j=1;j<=k;j++){const zz=zb0+(zb1-zb0)*j/(k+1);P.push([u0+e,u1-e,6,nf-20,zz,zz+e,cc])}
     f.pan.forEach(p=>P.push([u0+p.x0,u0+p.x1,nf,pr,z0+p.z0,z0+p.z1,fr]));
     f.pux.forEach(p=>P.push(p.v?[u0+p.x-7,u0+p.x+7,pr,pr+22,z0+p.z-70,z0+p.z+70,'#4a4d52']:[u0+p.x-70,u0+p.x+70,pr,pr+22,z0+p.z-7,z0+p.z+7,'#4a4d52']));
-    P.map(b=>({b,d:prof(w,...b.slice(0,6))})).sort((p,q)=>q.d-p.d).forEach(({b})=>caixa(w,...b.slice(0,6),b[6],{lw:.8}));
+    ordemLocal(w,P).forEach(({b})=>caixa(w,...b.slice(0,6),b[6],{lw:.8}));
     if(estilo==='cores'||cam.rotulos!==false){const q=prj(P3(w,(u0+u1)/2,pr+30,z0+f.rod+(+m.alt-f.rod)/2)),c=corMovel(m);ctx.beginPath();ctx.arc(q[0],q[1],11*dpr,0,7);ctx.fillStyle=c;ctx.fill();ctx.lineWidth=1.5*dpr;ctx.strokeStyle='#fff';ctx.stroke();
       ctx.fillStyle='#fff';ctx.font=`800 ${9.5*dpr}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('M'+(x.mi+1),q[0],q[1]+.5);ctx.textBaseline='alphabetic'}}
   // pontos (tomadas, água...) por cima, para ver o que fica atrás dos móveis
@@ -2041,7 +2065,7 @@ function pecasAvulsa(v){const out=[],ferr={},mat=v.mat||matPadrao('Frente'),F0=[
 function nomeAvulsa(v){if(v.k==='cabeceira')return `${v.nome?v.nome+' - ':''}painel de cabeceira ${v.larg} × ${v.alt} com mão amiga${v.eng_esq||v.eng_dir?', lado aparente engrossado':''}`;return v.k==='tampo'?`${v.nome?v.nome+' - ':''}tampo ${v.eng!==false?'engrossado '+2*(+v.esp||15)+' mm':(+v.esp||15)+' mm'} ${v.comp} × ${v.prof}`:`${v.nome?v.nome+' - ':''}painel ${v.alt} × ${v.larg} × ${v.esp}`}
 
 // blocos extras de cada parede para as vistas: tamponamentos dos móveis e peças avulsas
-function blocosExtras(a,wid){const L=[],fr=18,mt=2;
+function blocosExtras(a,wid){const L=blocosObjetos(a,wid),fr=18,mt=2;
   (a.moveis||[]).forEach(m=>{if(m.parede!==wid||!m.larg||!m.alt||!m.prof)return;const u0=+m.dist||0,u1=u0+(+m.larg),z0=+m.z||0,Ht=+m.alt,b=+m.base||0,ae=ehAereo(m);
     const R=ae?0:(b===1||b===4?100:b>1?70:0),zb=(ae||[0,1,4].includes(b))?z0:z0+R,n1=(+m.prof)+fr+mt,cS=mistura(corMovel(m),'#000000',.15),cR=coresMovel(m).fr;
     const E=+m.tamp_esq?1:0,D=+m.tamp_dir?1:0;
@@ -2246,6 +2270,12 @@ async function sincronizar(manual){
       copia.id=uid();copia.cliente=(copia.cliente||'Sem nome')+' (conflito '+new Date(altDe(copia)).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})+')';
       if(altDe(d)>altDe(lp))await syAplicar(d,rs,rem);else await sySubir(lp,rem);
       await dbPut('projetos',copia);projetos.push(copia);await sySubir(copia,rem);conf++;mudouTela=true}
+    {const pp='config/precos.json',rs=rem[pp],me=SY.meta.precos||{},altL=PRECOS?(PRECOS.alterado||0):null;   // tabela de preços
+      const mudL=!!PRECOS&&(altL!==me.alt||!rs),mudR=!!rs&&rs!==me.sha;
+      if(mudL&&!mudR){const sha=await syPut(pp,JSON.stringify(PRECOS),rs);rem[pp]=sha;SY.meta.precos={sha,alt:altL}}
+      else if(mudR){const d=JSON.parse(await syLer(rs));const novo=mudL?mesclarPrecos(PRECOS,d):d;PRECOS=novo;await dbPut('config',{id:'precos',dados:PRECOS});
+        if(mudL){const sha=await syPut(pp,JSON.stringify(PRECOS),rs);rem[pp]=sha;SY.meta.precos={sha,alt:PRECOS.alterado||0}}else SY.meta.precos={sha:rs,alt:PRECOS.alterado||0};
+        if(view==='orc'||view==='precos')mudouTela=true}}
     SY.nuvem=Object.keys(rem).filter(k=>k.startsWith('projetos/')).length;
     SY.ult=Date.now();SY.erro='';await syGravar();syChip('ok');
     if(mudouTela&&!syOcupado())render();else if(view==='sync')render();
@@ -2300,8 +2330,81 @@ function telaSync(){titulo('Sincronizar aparelhos','Tablet, celular e computador
   <p class="meta">Os dados ficam no seu repositório privado. O repositório do app (medidor) continua público e não guarda nenhum projeto.</p>
   </section>`}
 
+/* ================= ELETROS E OBJETOS (só para visualizar: não entram no corte nem no orçamento) ================= */
+const OBJETOS={
+  geladeira:{n:'Geladeira',larg:700,alt:1850,prof:720,z:0,cor:'#c9ccd1'},
+  fogao:{n:'Fogão de piso',larg:550,alt:850,prof:600,z:0,cor:'#9aa0a6'},
+  cooktop:{n:'Cooktop',larg:580,alt:60,prof:510,z:900,cor:'#2b2d30'},
+  forno:{n:'Forno de embutir',larg:595,alt:595,prof:560,z:850,cor:'#3a3d42'},
+  micro:{n:'Micro-ondas',larg:595,alt:390,prof:400,z:1450,cor:'#4a4d52'},
+  coifa:{n:'Coifa / depurador',larg:600,alt:400,prof:480,z:1650,cor:'#b8bcc2'},
+  lava_loucas:{n:'Lava-louças',larg:600,alt:850,prof:600,z:0,cor:'#c9ccd1'},
+  lavadora:{n:'Máquina de lavar',larg:600,alt:850,prof:650,z:0,cor:'#e6e8eb'},
+  cuba:{n:'Cuba / pia',larg:500,alt:200,prof:400,z:700,cor:'#b8bcc2'},
+  torneira:{n:'Torneira',larg:60,alt:300,prof:220,z:900,cor:'#8e939a'},
+  vaso:{n:'Vaso sanitário',larg:380,alt:400,prof:650,z:0,cor:'#f4f4f2'},
+  lavatorio:{n:'Lavatório / cuba banheiro',larg:450,alt:180,prof:350,z:720,cor:'#f4f4f2'},
+  tv:{n:'TV',larg:1250,alt:720,prof:60,z:1000,cor:'#1d1f22'},
+  ar:{n:'Ar-condicionado',larg:850,alt:300,prof:220,z:2200,cor:'#eceef0'},
+  cama:{n:'Cama de casal',larg:1400,alt:500,prof:1900,z:0,cor:'#c7b9a5'},
+  sofa:{n:'Sofá',larg:2000,alt:850,prof:900,z:0,cor:'#8c8f94'},
+  mesa:{n:'Mesa',larg:1200,alt:760,prof:800,z:0,cor:'#a07b5a'},
+  generico:{n:'Objeto (caixa)',larg:500,alt:500,prof:500,z:0,cor:'#9e8fb2'}
+};
+function novoObjeto(k,wid){const t=OBJETOS[k]||OBJETOS.generico;return {id:uid(),k,parede:wid,dist:0,afast:0,larg:t.larg,alt:t.alt,prof:t.prof,z:t.z,cor:t.cor,nome:''}}
+const nomeObjeto=o=>o.nome||(OBJETOS[o.k]||OBJETOS.generico).n;
+function objetoHTML(o,idx){const t=OBJETOS[o.k]||OBJETOS.generico,k='j:'+o.id+':';
+  return `<div class="item" style="--c:${o.cor||t.cor}">
+  <div class="ih ihm"><span class="num" style="background:${o.cor||t.cor}">O${idx+1}</span>
+    <b style="align-self:center">${esc(t.n)}</b>
+    <select aria-label="Parede" data-o="j" data-id="${o.id}" data-f="parede" data-full="1">${A.paredes.map((w,i)=>`<option value="${w.id}"${w.id===o.parede?' selected':''}>Parede ${LETRAS[i]}</option>`).join('')}</select>
+    <button class="ic" data-a="delJ" data-id="${o.id}" aria-label="Apagar objeto">✕</button></div>
+  <div class="ig">
+    <div><label>Dist. do início</label>${inp('j','dist',o.dist,k+'dist',o.id)}</div>
+    <div><label>Largura</label>${inp('j','larg',o.larg,k+'larg',o.id)}</div>
+    <div><label>Altura</label>${inp('j','alt',o.alt,k+'alt',o.id)}</div>
+    <div><label>Profundidade</label>${inp('j','prof',o.prof,k+'prof',o.id)}</div>
+    <div><label>Altura do chão</label>${inp('j','z',o.z,k+'z',o.id)}</div>
+    <div><label>Afastado da parede</label>${inp('j','afast',o.afast,k+'afast',o.id)}</div></div>
+  <div class="ig"><div><label>Nome</label><input data-o="j" data-id="${o.id}" data-f="nome" value="${esc(o.nome)}" placeholder="${esc(t.n)}"></div>
+    <div><label>Cor</label><input type="color" data-o="j" data-id="${o.id}" data-f="cor" data-full="1" value="${esc(o.cor||t.cor)}"></div></div></div>`}
+function blocosObjetos(a,wid){return (a.objetos||[]).filter(o=>o.parede===wid&&+o.larg&&+o.alt&&+o.prof).map(o=>{const u0=+o.dist||0,n0=+o.afast||0,z0=+o.z||0;
+  return {u0,u1:u0+(+o.larg),n0,n1:n0+(+o.prof),z0,z1:z0+(+o.alt),cS:o.cor||'#9e8fb2',cR:o.cor||'#9e8fb2',t:'obj',rot:nomeObjeto(o)}})}
+
+/* ================= TABELA DE PREÇOS NO APARELHO (editar na rua; sincroniza entre os aparelhos) ================= */
+let precoBusca='',precoSoZero=false;
+async function gravarPrecos(){if(!PRECOS)return;PRECOS.alterado=Date.now();await dbPut('config',{id:'precos',dados:PRECOS}).catch(()=>{});if(typeof agendarSync==='function')agendarSync(3000)}
+function faltandoPrecos(){if(!P)return [];try{return calcularOrcamento(P).faltando||[]}catch(e){return []}}
+function telaPrecos(){titulo('Tabela de preços','Editar valores neste aparelho');
+  if(!PRECOS)return `<section class="stack"><div class="vazio"><p><b>Ainda não tem tabela de preços neste aparelho.</b></p><p>Carregue uma vez o arquivo do FreeCAD (botão <i>Enviar preços para o tablet</i>). Com a sincronização ligada, ela passa sozinha para os outros aparelhos.</p></div><div><button class="primary" data-a="carregarPrecos">Carregar preços</button></div></section>`;
+  const fal=faltandoPrecos(),q=asc(precoBusca).toLowerCase();
+  const lista=PRECOS.precos.map((p,i)=>({p,i})).filter(({p})=>(!q||asc(p.nome).toLowerCase().includes(q)||asc(p.papel||'').toLowerCase().includes(q))&&(!precoSoZero||!(+p.preco)));
+  const grupos={};lista.forEach(x=>{const g=x.p.papel||'Outros';(grupos[g]=grupos[g]||[]).push(x)});
+  const linha=({p,i})=>`<div class="prow"><span class="pnome">${esc(p.nome)}${p.editado?' <span class="pill ok">editado</span>':''}</span>
+    <input type="number" inputmode="decimal" step="0.01" data-o="pr" data-id="${i}" value="${p.preco??''}" placeholder="R$" aria-label="Preço de ${esc(p.nome)}"></div>`;
+  return `<section class="stack">
+  <div class="pend ok"><b>Preços de ${esc(PRECOS.gerado||'—')}</b>${PRECOS.alterado?' · alterado '+new Date(PRECOS.alterado).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):''}<br><span class="meta">${PRECOS.precos.length} itens. O que você mudar aqui vale no orçamento do app e ${syLig()?'vai para os outros aparelhos pela sincronização':'fica neste aparelho (ligue a sincronização para passar aos outros)'}.</span></div>
+  ${fal.length?`<div class="pend"><b>Faltando no orçamento de ${esc(P.cliente||'este projeto')} (${fal.length}):</b> preencha e o orçamento já recalcula.
+    ${fal.map(n=>{const i=PRECOS.precos.findIndex(x=>x.nome===n);return `<div class="prow"><span class="pnome">${esc(n)}</span><input type="number" inputmode="decimal" step="0.01" ${i>=0?`data-o="pr" data-id="${i}"`:`data-o="prnovo" data-f="${esc(n)}"`} placeholder="R$"></div>`}).join('')}</div>`:''}
+  <div class="grid2"><div><label>Procurar</label><input id="prBusca" value="${esc(precoBusca)}" placeholder="Ex.: dobradiça, MDF branco, fita"></div>
+    <div><label class="chk" style="margin-top:22px"><input type="checkbox" id="prZero"${precoSoZero?' checked':''}> Só os sem preço</label></div></div>
+  ${Object.entries(grupos).sort().map(([g,xs])=>`<details class="pgrupo"${q||precoSoZero||Object.keys(grupos).length<=2?' open':''}><summary><b>${esc(g)}</b> <span class="meta">${xs.length}</span></summary>${xs.map(linha).join('')}</details>`).join('')||'<p class="meta">Nada encontrado.</p>'}
+  <div class="bar"><h3>Novo item</h3></div>
+  <div class="grid2"><div><label>Nome (igual ao da planilha)</label><input id="prNome" placeholder="Ex.: Fita de Borda 35 mm (metro)"></div>
+    <div><label>Tipo</label><select id="prPapel">${['Ferragem','Caixa','Frente','Fundo','Fita','Outros'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <div><label>Preço (R$)</label><input id="prValor" type="number" inputmode="decimal" step="0.01"></div></div>
+  <div><button class="primary" data-a="prAdd">Adicionar item</button></div>
+  <p class="meta">Para a planilha do computador receber estas mudanças, use no FreeCAD o botão que lê os preços do app (próxima atualização da bancada).</p>
+  </section>`}
+async function mudarPreco(i,v){const p=PRECOS.precos[i];if(!p)return;p.preco=v===''?0:num(v);p.editado=Date.now();await gravarPrecos()}
+function mesclarPrecos(loc,rem){if(!loc)return rem;if(!rem)return loc;
+  const base=(loc.recebido||0)>=(rem.recebido||0)?loc:rem,outro=base===loc?rem:loc,out=JSON.parse(JSON.stringify(base)),idx={};
+  out.precos.forEach((p,k)=>idx[p.nome]=k);
+  for(const p of outro.precos||[]){if(!p.editado)continue;const j=idx[p.nome];if(j===undefined){out.precos.push(p);idx[p.nome]=out.precos.length-1}else if(p.editado>(out.precos[j].editado||0))out.precos[j]=p}
+  out.alterado=Math.max(loc.alterado||0,rem.alterado||0);return out}
+
 /* ================= eventos ================= */
-function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id);if(o==='v')return (A.avulsas||[]).find(v=>v.id===id)}
+function obj(o,id){if(o==='c')return cantoTmp;if(o==='p')return P;if(o==='a')return A;if(o==='w')return A.paredes.find(w=>w.id===id);if(o==='i')return A.itens.find(i=>i.id===id);if(o==='m')return (A.moveis||[]).find(m=>m.id===id);if(o==='v')return (A.avulsas||[]).find(v=>v.id===id);if(o==='j')return (A.objetos||[]).find(v=>v.id===id)}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-a]');
   if(!e.target.closest('#menu')&&!e.target.closest('#menuBtn'))$('#menu').hidden=true;
@@ -2335,6 +2438,14 @@ document.addEventListener('click',async e=>{
       const v=novaAvulsa(f,selW||A.paredes[0].id);A.avulsas.push(v);salvar();render();
       const el=document.querySelector(`[data-k="v:${v.id}:comp"],[data-k="v:${v.id}:larg"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
       toast(f==='tampo'?`Tampo ${v.comp} × ${v.prof} na parede ${letra(v.parede)}`:'Painel na parede '+letra(v.parede));break;}
+    case 'addJ':{if(!A.paredes.length){toast('Adicione uma parede primeiro');return}if(!A.objetos)A.objetos=[];
+      const o=novoObjeto(f,selW||A.paredes[0].id);A.objetos.push(o);salvar();render();
+      const el=document.querySelector(`[data-k="j:${o.id}:dist"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'});toast(nomeObjeto(o)+' na parede '+letra(o.parede));break;}
+    case 'delJ':if(!dupla(b))return;A.objetos=(A.objetos||[]).filter(v=>v.id!==id);salvar();render();break;
+    case 'mPrecos':if(view!=='diag'&&view!=='ajuda'&&view!=='sync'&&view!=='precos')prevView=view;view='precos';render();scrollTo(0,0);break;
+    case 'prAdd':{if(!PRECOS){toast('Carregue os preços primeiro');return}const n=$('#prNome').value.trim(),v=$('#prValor').value;if(!n){toast('Escreva o nome do item');return}
+      const ex=PRECOS.precos.find(x=>x.nome===n);if(ex){ex.preco=num(v||0);ex.editado=Date.now()}else PRECOS.precos.push({nome:n,papel:$('#prPapel').value,preco:num(v||0),editado:Date.now()});
+      await gravarPrecos();render();toast('Item salvo: '+n);break;}
     case 'delV':if(!dupla(b))return;A.avulsas=(A.avulsas||[]).filter(v=>v.id!==id);salvar();render();break;
     case 'tampoMoveis':{const v=(A.avulsas||[]).find(x=>x.id===id);if(!v)return;const n=novaAvulsa('tampo',v.parede);
       if(!(A.moveis||[]).some(m=>m.parede===v.parede&&!ehAereo(m)&&(+m.alt||0)<=1200)){toast('Não há balcões nessa parede');return}
@@ -2385,6 +2496,7 @@ document.addEventListener('click',async e=>{
     case 'simular':leitura(1000+Math.round(Math.random()*3000));break;
   }
 });
+let tBusca;document.addEventListener('input',e=>{if(e.target.id==='prBusca'){precoBusca=e.target.value;clearTimeout(tBusca);tBusca=setTimeout(()=>{render();const b=$('#prBusca');if(b){b.focus();b.setSelectionRange(b.value.length,b.value.length)}},350)}});
 document.addEventListener('change',async e=>{
   const el=e.target;
   if(el.id==='prefShare'){prefShare=el.checked;ls.set('glm_share',prefShare?'1':'0');return}
@@ -2396,6 +2508,9 @@ document.addEventListener('change',async e=>{
       if((o==='m'||t.ab)&&!larg){toast('Preencha a largura antes');return}
       obj.dist=Math.round(w.L-v-larg);salvar();const di=document.querySelector(`input[data-o="${o}"][data-id="${obj.id}"][data-f="dist"]`);if(di)di.value=obj.dist;parcial();toast('Distância do início: '+obj.dist+' mm')}return}
   if(el.id==='precoFile'){await importarPrecos(el.files[0]);el.value='';return}
+  if(el.dataset.o==='pr'){await mudarPreco(+el.dataset.id,el.value.trim());el.closest('.prow')&&el.closest('.prow').classList.add('ok');return}
+  if(el.dataset.o==='prnovo'){if(!PRECOS)return;PRECOS.precos.push({nome:el.dataset.f,papel:'Ferragem',preco:num(el.value||0),editado:Date.now()});await gravarPrecos();render();return}
+  if(el.id==='prZero'){precoSoZero=el.checked;render();return}
   if(el.dataset.o==='orc'){if(!P.orc)P.orc={params:{},extras:[]};const v=el.value.trim();if(v==='')delete P.orc.params[el.dataset.f];else P.orc.params[el.dataset.f]=num(v);salvar();render();return}
   if(el.dataset.o==='mcor'){const m=P.ambientes.flatMap(a=>[...(a.moveis||[]),...(a.avulsas||[])]).find(x=>x.id===el.dataset.id);if(m){m[el.dataset.f]=el.value;salvar();render()}return}
   if(el.dataset.fotoO){const files=[...el.files];el.value='';
@@ -2409,7 +2524,7 @@ document.addEventListener('change',async e=>{
   if(el.dataset.full)render();else if(view==='amb')parcial();
   if(view==='amb'&&o==='w')atualizarSobras();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
 });
-$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='orc'||view==='modelo'){view='projeto'}else if(view==='desenho'){desenho=null;view='modelo'}else if(view==='diag'||view==='ajuda'||view==='sync'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
+$('#voltar').onclick=()=>{if(view==='amb'){A=null;view='projeto';lembrarBk()}else if(view==='projeto'){P=null;view='lista'}else if(view==='orc'||view==='modelo'){view='projeto'}else if(view==='desenho'){desenho=null;view='modelo'}else if(view==='diag'||view==='ajuda'||view==='sync'||view==='precos'){view=prevView;if(view==='amb'&&!A)view=P?'projeto':'lista'}render();scrollTo(0,0)};
 $('#fabMedir').onclick=medirRemoto;$('#fabLaser').onclick=alternarLaser;
 document.addEventListener('toggle',e=>{if(e.target.classList&&e.target.classList.contains('metr')&&e.target.closest('#metr'))ls.set('glm_m2',e.target.open?'1':'0')},true);
 $('#menuBtn').onclick=()=>{$('#menu').hidden=!$('#menu').hidden};
