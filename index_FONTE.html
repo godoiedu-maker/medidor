@@ -1658,7 +1658,7 @@ function cena3D(a){const g=geo(a),H=PEmax(a),faces=[],caixas=[],pontos=[];
   (a.moveis||[]).forEach((m,mi)=>{const i=a.paredes.findIndex(w=>w.id===m.parede);if(i<0||!m.larg||!m.alt||!m.prof)return;
     if(cantoL(m)){blocosCanto(m).forEach((b,k)=>caixas.push({w:g.ws[i],u0:b.u0,u1:b.u1,n:b.n1,n0:b.n0,z0:+m.z||0,z1:(+m.z||0)+(+m.alt),cor:corMovel(m),m:null,num:k===0?mi+1:0}));return}
     caixas.push({w:g.ws[i],u0:+m.dist||0,u1:(+m.dist||0)+(+m.larg),n:+m.prof,z0:+m.z||0,z1:(+m.z||0)+(+m.alt),cor:corMovel(m),m,num:mi+1})});
-  g.ws.forEach((w,i)=>blocosExtras(a,a.paredes[i].id).forEach(b=>caixas.push({w,u0:b.u0,u1:b.u1,n:b.n1,z0:b.z0,z1:b.z1,cor:b.cS,m:null,tampo:b.t==='tampo'})));
+  g.ws.forEach((w,i)=>blocosExtras(a,a.paredes[i].id).forEach(b=>{caixas.push({w,u0:b.u0,u1:b.u1,n:b.n1,z0:b.z0,z1:b.z1,cor:b.cS,m:null,tampo:b.t==='tampo'})}));
   return {g,H,faces,caixas,pontos}}
 
 // ---------------- 3D: paredes com espessura, móveis com peças, portas e janelas modeladas
@@ -1697,6 +1697,8 @@ function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBo
       [[Q(u0,n0,z1),Q(u0,n1,z1),Q(u1,n1,z1),Q(u1,n0,z1)],[0,0,1]],[[Q(u0,n0,z0),Q(u1,n0,z0),Q(u1,n1,z0),Q(u0,n1,z0)],[0,0,-1]]];
     for(const [pts,nv] of F){const c=pts.reduce((s,p)=>[s[0]+p[0]/4,s[1]+p[1]/4,s[2]+p[2]/4],[0,0,0]);if(vis(nv,c))face(pts,cor,nv,o)}};
   const prof=(w,u0,u1,n0,n1,z0,z1)=>prj(P3(w,(u0+u1)/2,(n0+n1)/2,(z0+z1)/2))[2];
+  const disco=(w,d)=>{const nv=d.eixo==='z'?[0,0,1]:[w.ix,w.iy,0],[u,nn,z]=d.c;if(!vis(nv,P3(w,u,nn,z)))return;const pts=[];
+    for(let k=0;k<24;k++){const a=k/24*Math.PI*2,ca=Math.cos(a)*d.r,sa=Math.sin(a)*d.r;pts.push(d.eixo==='z'?P3(w,u+ca,nn+sa,z):P3(w,u+ca,nn,z+sa))}face(pts,d.cor,nv,{lw:.5,la:.5})};
   const camM=cam.persp?C:[cx-cd[0]*1e7,cy-cd[1]*1e7,cz-cd[2]*1e7];
   const camW=w=>{const dx=camM[0]-w.ax,dy=camM[1]-w.ay;return [dx*w.ux+dy*w.uy,dx*w.ix+dy*w.iy,camM[2]]};
   const bbW=(w,u0,u1,n0,n1,z0,z1)=>{const ps=[];for(const u of [u0,u1])for(const nn of [n0,n1])for(const z of [z0,z1])ps.push(P3(w,u,nn,z));
@@ -1748,7 +1750,10 @@ function desenhar3Dreal(){const cv=$('#cv3d');if(!cv||!A)return;const r=cv.getBo
   const caixaDe=x=>{if(x.ex){const b=x.ex;return bbW(x.w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1)}const m=x.m;
     if(cantoL(m)){const bs=blocosCanto(m);return bbW(x.w,Math.min(...bs.map(b=>b.u0)),Math.max(...bs.map(b=>b.u1)),Math.min(...bs.map(b=>b.n0)),Math.max(...bs.map(b=>b.n1)),x.z0,x.z0+(+m.alt))}
     return bbW(x.w,x.u0,x.u1,0,x.pr+22,x.z0,x.z0+(+m.alt))};
-  for(const x of ordemPintor([...mov,...exs].map(x=>Object.assign(x,caixaDe(x))),camM)){if(x.ex){const b=x.ex;caixa(x.w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1,b.cR,{lw:.8});
+  for(const x of ordemPintor([...mov,...exs].map(x=>Object.assign(x,caixaDe(x))),camM)){if(x.ex&&x.ex.t==='obj'){const pc=pecasObjeto(x.ex.o);
+      ordemLocal(x.w,pc.P).forEach(({b})=>caixa(x.w,...b.slice(0,6),b[6],b[7]==='vidro'?{alpha:.35,la:.5,lw:.6}:{lw:.6,la:.55}));
+      pc.D.forEach(d=>disco(x.w,d));continue}
+    if(x.ex){const b=x.ex;caixa(x.w,b.u0,b.u1,b.n0,b.n1,b.z0,b.z1,b.cR,{lw:.8});
       (b.emU||[]).forEach(u=>{const q1=prj(P3(x.w,u,b.n0,b.z1+1)),q2=prj(P3(x.w,u,b.n1,b.z1+1));ctx.beginPath();ctx.moveTo(q1[0],q1[1]);ctx.lineTo(q2[0],q2[1]);ctx.strokeStyle='#c62828';ctx.lineWidth=1.4*dpr;ctx.setLineDash([5*dpr,3*dpr]);ctx.stroke();ctx.setLineDash([])});
       if(b.t==='tampo'&&b.eng){const q1=prj(P3(x.w,b.u0,b.n1+1,b.z0+b.e)),q2=prj(P3(x.w,b.u1,b.n1+1,b.z0+b.e));ctx.beginPath();ctx.moveTo(q1[0],q1[1]);ctx.lineTo(q2[0],q2[1]);ctx.strokeStyle='rgba(40,40,40,.35)';ctx.lineWidth=.7*dpr;ctx.stroke()}continue}
     if(cantoL(x.m)){const {m,w,z0}=x,{cx:cc,fr}=coresMovel(m),f=paineisFrente(m),zt=z0+(+m.alt);
@@ -2089,6 +2094,7 @@ function blocosExtras(a,wid){const L=blocosObjetos(a,wid),fr=18,mt=2;
 function extrasPlanta(a,g,fs,real){let s='';
   g.ws.forEach((w,i)=>blocosExtras(a,a.paredes[i].id).forEach(b=>{const P=(u,n)=>[(w.ax+w.ux*u+w.ix*n).toFixed(1),(-(w.ay+w.uy*u+w.iy*n)).toFixed(1)].join(',');
     const cor=real?(b.t==='tamp'?'#3a3d42':b.t==='tampo'?'#6d5a48':'#455a64'):b.cS;
+    if(b.t==='obj')s+=objPlanta(b,w,real);
     s+=`<polygon points="${P(b.u0,b.n0)} ${P(b.u1,b.n0)} ${P(b.u1,b.n1)} ${P(b.u0,b.n1)}" style="fill:${b.t==='tamp'?cor:'none'};fill-opacity:${b.t==='tamp'?.55:0};stroke:${cor};stroke-width:${b.t==='tamp'?1:2}px;${b.t==='tampo'?'stroke-dasharray:10 4 2 4;':''}" vector-effect="non-scaling-stroke"/>`;
     (b.emU||[]).forEach(u=>{s+=`<polyline points="${P(u,b.n0)} ${P(u,b.n1)}" fill="none" style="stroke:#c62828" stroke-width="1.6" stroke-dasharray="6 3" vector-effect="non-scaling-stroke"/>`});
     (b.emN||[]).forEach(n=>{s+=`<polyline points="${P(b.u0,n)} ${P(b.u1,n)}" fill="none" style="stroke:#c62828" stroke-width="1.6" stroke-dasharray="6 3" vector-effect="non-scaling-stroke"/>`});
@@ -2097,6 +2103,7 @@ function extrasPlanta(a,g,fs,real){let s='';
 // elevação: tamponamentos e peças avulsas de frente
 function extrasElev(a,wid,fs,real){let s='';const Y=z=>-z;
   blocosExtras(a,wid).forEach(b=>{const cor=real?b.cR:b.cS,lw=b.u1-b.u0,h=b.z1-b.z0;
+    if(b.t==='obj'){s+=objElev(b,real);if(lw>=150)s+=`<text x="${b.u0+lw/2}" y="${Y(b.z1)-fs*.3}" font-size="${fs*.45}" text-anchor="middle" style="fill:${real?'#3a2e22':b.cS}" font-weight="700">${esc(b.o.nome||(OBJETOS[b.o.k]||OBJETOS.generico).n)} · ${Math.round(lw)}</text>`;return}
     if(b.t==='ma'||b.t==='eng'){s+=`<rect x="${b.u0}" y="${Y(b.z1)}" width="${lw}" height="${h}" style="fill:none;stroke:${real?'#5a3a24':b.cS}" stroke-width="1" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;return}
     s+=`<rect x="${b.u0}" y="${Y(b.z1)}" width="${lw}" height="${h}" style="fill:${cor};fill-opacity:${real?1:.45};stroke:${real?'#2a2e33':b.cS}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`;
     if(b.t==='tampo'&&b.eng)s+=`<line x1="${b.u0}" y1="${Y(b.z0+b.e)}" x2="${b.u1}" y2="${Y(b.z0+b.e)}" style="stroke:${real?'#2a2e33':b.cS}" stroke-width=".6" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;
@@ -2332,33 +2339,49 @@ function telaSync(){titulo('Sincronizar aparelhos','Tablet, celular e computador
 
 /* ================= ELETROS E OBJETOS (só para visualizar: não entram no corte nem no orçamento) ================= */
 const OBJETOS={
-  geladeira:{n:'Geladeira',larg:700,alt:1850,prof:720,z:0,cor:'#c9ccd1'},
-  fogao:{n:'Fogão de piso',larg:550,alt:850,prof:600,z:0,cor:'#9aa0a6'},
-  cooktop:{n:'Cooktop',larg:580,alt:60,prof:510,z:900,cor:'#2b2d30'},
-  forno:{n:'Forno de embutir',larg:595,alt:595,prof:560,z:850,cor:'#3a3d42'},
-  micro:{n:'Micro-ondas',larg:595,alt:390,prof:400,z:1450,cor:'#4a4d52'},
-  coifa:{n:'Coifa / depurador',larg:600,alt:400,prof:480,z:1650,cor:'#b8bcc2'},
-  lava_loucas:{n:'Lava-louças',larg:600,alt:850,prof:600,z:0,cor:'#c9ccd1'},
-  lavadora:{n:'Máquina de lavar',larg:600,alt:850,prof:650,z:0,cor:'#e6e8eb'},
-  cuba:{n:'Cuba / pia',larg:500,alt:200,prof:400,z:700,cor:'#b8bcc2'},
-  torneira:{n:'Torneira',larg:60,alt:300,prof:220,z:900,cor:'#8e939a'},
-  vaso:{n:'Vaso sanitário',larg:380,alt:400,prof:650,z:0,cor:'#f4f4f2'},
-  lavatorio:{n:'Lavatório / cuba banheiro',larg:450,alt:180,prof:350,z:720,cor:'#f4f4f2'},
-  tv:{n:'TV',larg:1250,alt:720,prof:60,z:1000,cor:'#1d1f22'},
-  ar:{n:'Ar-condicionado',larg:850,alt:300,prof:220,z:2200,cor:'#eceef0'},
-  cama:{n:'Cama de casal',larg:1400,alt:500,prof:1900,z:0,cor:'#c7b9a5'},
+  geladeira:{n:'Geladeira',z:0,cor:'#c3c7cc',mods:[
+    {n:'Electrolux IM8S Multidoor 590 L (inox)',larg:835,alt:1900,prof:742,obs:'Deixe uns 50 mm livres em cima e 25 mm nas laterais para ventilar.'},
+    {n:'Duplex 2 portas (genérica)',larg:700,alt:1850,prof:720}]},
+  fogao:{n:'Fogão de piso',z:0,cor:'#c3c7cc',mods:[
+    {n:'Electrolux 76GS 5 bocas, mesa de vidro',larg:763,alt:949,prof:674,obs:'Altura com a tampa de vidro fechada.'},
+    {n:'4 bocas (genérico)',larg:550,alt:850,prof:600}]},
+  cooktop:{n:'Cooktop',z:900,cor:'#17181a',mods:[
+    {n:'Electrolux IE60P indução 4 zonas',larg:590,alt:44,prof:520,obs:'Recorte na bancada: 560 × 490 mm.'},
+    {n:'Gás 5 bocas (genérico)',larg:750,alt:60,prof:520}]},
+  forno:{n:'Forno de embutir',z:850,cor:'#b9bdc2',mods:[
+    {n:'Electrolux OE8EH 80 L Efficient (inox)',larg:596,alt:596,prof:613,obs:'Nicho rente ao móvel: vão 600 × 600, altura interna 610, prof. do móvel 600 mm.'}]},
+  micro:{n:'Micro-ondas de embutir',z:1450,cor:'#2a2c2f',mods:[
+    {n:'Electrolux ME3EP 34 L (preto)',larg:540,alt:366,prof:395,obs:'Medida do aparelho sem moldura: confira o nicho no manual.'}]},
+  coifa:{n:'Coifa de parede',z:1650,cor:'#c3c7cc',mods:[
+    {n:'Electrolux 60CTS 60 cm (inox)',larg:600,alt:830,prof:500,obs:'Altura regulável de 830 a 1145 mm.'},
+    {n:'Coifa 90 cm (genérica)',larg:900,alt:830,prof:500}]},
+  lava_loucas:{n:'Lava-louças',z:0,cor:'#c3c7cc',mods:[
+    {n:'Electrolux LL14X 14 serviços (inox)',larg:598,alt:845,prof:610}]},
+  lavadora:{n:'Máquina de lavar',z:0,cor:'#eef0f2',mods:[
+    {n:'Electrolux LDA13 13 kg (abre em cima)',larg:590,alt:1040,prof:667},
+    {n:'Lava e seca frontal (genérica)',larg:600,alt:850,prof:600}]},
+  cuba:{n:'Cuba / pia',larg:500,alt:200,prof:400,z:700,cor:'#c3c7cc'},
+  torneira:{n:'Torneira',larg:60,alt:300,prof:220,z:900,cor:'#b9bdc2'},
+  vaso:{n:'Vaso com caixa acoplada',larg:380,alt:780,prof:650,z:0,cor:'#f4f4f2'},
+  lavatorio:{n:'Cuba de apoio (banheiro)',larg:450,alt:150,prof:350,z:850,cor:'#f4f4f2'},
+  tv:{n:'TV',larg:1250,alt:720,prof:60,z:1000,cor:'#151618'},
+  ar:{n:'Ar-condicionado split',larg:850,alt:300,prof:220,z:2200,cor:'#f2f3f4'},
+  cama:{n:'Cama de casal',larg:1400,alt:1100,prof:1900,z:0,cor:'#c7b9a5'},
   sofa:{n:'Sofá',larg:2000,alt:850,prof:900,z:0,cor:'#8c8f94'},
   mesa:{n:'Mesa',larg:1200,alt:760,prof:800,z:0,cor:'#a07b5a'},
   generico:{n:'Objeto (caixa)',larg:500,alt:500,prof:500,z:0,cor:'#9e8fb2'}
 };
-function novoObjeto(k,wid){const t=OBJETOS[k]||OBJETOS.generico;return {id:uid(),k,parede:wid,dist:0,afast:0,larg:t.larg,alt:t.alt,prof:t.prof,z:t.z,cor:t.cor,nome:''}}
-const nomeObjeto=o=>o.nome||(OBJETOS[o.k]||OBJETOS.generico).n;
-function objetoHTML(o,idx){const t=OBJETOS[o.k]||OBJETOS.generico,k='j:'+o.id+':';
+const medObj=t=>t.mods?t.mods[0]:t;
+function novoObjeto(k,wid){const t=OBJETOS[k]||OBJETOS.generico,m=medObj(t);return {id:uid(),k,parede:wid,dist:0,afast:0,larg:m.larg,alt:m.alt,prof:m.prof,z:t.z,cor:t.cor,nome:'',mod:t.mods?'0':''}}
+const modeloObj=o=>{const t=OBJETOS[o.k]||OBJETOS.generico;return t.mods&&o.mod!==''&&o.mod!=null?t.mods[+o.mod]:null};
+const nomeObjeto=o=>o.nome||(modeloObj(o)||{}).n||(OBJETOS[o.k]||OBJETOS.generico).n;
+function objetoHTML(o,idx){const t=OBJETOS[o.k]||OBJETOS.generico,k='j:'+o.id+':',md=modeloObj(o);
   return `<div class="item" style="--c:${o.cor||t.cor}">
   <div class="ih ihm"><span class="num" style="background:${o.cor||t.cor}">O${idx+1}</span>
     <b style="align-self:center">${esc(t.n)}</b>
     <select aria-label="Parede" data-o="j" data-id="${o.id}" data-f="parede" data-full="1">${A.paredes.map((w,i)=>`<option value="${w.id}"${w.id===o.parede?' selected':''}>Parede ${LETRAS[i]}</option>`).join('')}</select>
     <button class="ic" data-a="delJ" data-id="${o.id}" aria-label="Apagar objeto">✕</button></div>
+  ${t.mods?`<div><label>Modelo</label><select data-o="j" data-id="${o.id}" data-f="mod" data-full="1">${t.mods.map((m,i)=>`<option value="${i}"${String(o.mod)===String(i)?' selected':''}>${esc(m.n)} · ${m.larg}×${m.alt}×${m.prof}</option>`).join('')}<option value=""${o.mod===''||o.mod==null?' selected':''}>Medida própria</option></select>${md&&md.obs?`<p class="meta" style="margin:4px 0 0">${esc(md.obs)}</p>`:''}</div>`:''}
   <div class="ig">
     <div><label>Dist. do início</label>${inp('j','dist',o.dist,k+'dist',o.id)}</div>
     <div><label>Largura</label>${inp('j','larg',o.larg,k+'larg',o.id)}</div>
@@ -2369,7 +2392,72 @@ function objetoHTML(o,idx){const t=OBJETOS[o.k]||OBJETOS.generico,k='j:'+o.id+':
   <div class="ig"><div><label>Nome</label><input data-o="j" data-id="${o.id}" data-f="nome" value="${esc(o.nome)}" placeholder="${esc(t.n)}"></div>
     <div><label>Cor</label><input type="color" data-o="j" data-id="${o.id}" data-f="cor" data-full="1" value="${esc(o.cor||t.cor)}"></div></div></div>`}
 function blocosObjetos(a,wid){return (a.objetos||[]).filter(o=>o.parede===wid&&+o.larg&&+o.alt&&+o.prof).map(o=>{const u0=+o.dist||0,n0=+o.afast||0,z0=+o.z||0;
-  return {u0,u1:u0+(+o.larg),n0,n1:n0+(+o.prof),z0,z1:z0+(+o.alt),cS:o.cor||'#9e8fb2',cR:o.cor||'#9e8fb2',t:'obj',rot:nomeObjeto(o)}})}
+  return {u0,u1:u0+(+o.larg),n0,n1:n0+(+o.prof),z0,z1:z0+(+o.alt),cS:o.cor||'#9e8fb2',cR:o.cor||'#9e8fb2',t:'obj',rot:nomeObjeto(o),o}})}
+
+/* Desenho de cada aparelho em peças (u ao longo da parede, n saindo da parede, z para cima).
+   P: caixas [u0,u1,n0,n1,z0,z1,cor,'vidro'?]; D: discos {c:[u,n,z],r,eixo:'z'|'n',cor} (bocas, porta da lavadora) */
+function pecasObjeto(o){const W=+o.larg||0,H=+o.alt||0,Dp=+o.prof||0,U=+o.dist||0,N=+o.afast||0,Z=+o.z||0,c=o.cor||(OBJETOS[o.k]||OBJETOS.generico).cor;
+  const P=[],Ds=[],B=(x0,x1,y0,y1,z0,z1,cor,v)=>{if(x1-x0>.5&&y1-y0>.5&&z1-z0>.5)P.push([U+x0,U+x1,N+y0,N+y1,Z+z0,Z+z1,cor,v])},
+    Dc=(x,y,z,r,cor,eixo='z')=>Ds.push({c:[U+x,N+y,Z+z],r,eixo,cor});
+  const PRETO='#1a1c1f',VID='#2b3540',INOX='#d3d6da',ESC='#4a4e53',esc_=mistura(c,'#000000',.25),cl=mistura(c,'#ffffff',.35);
+  switch(o.k){
+  case 'geladeira':{const pt=40,yb=Dp-pt-25,gap=8;B(0,W,0,yb,0,H,esc_);B(30,W-30,yb,yb+20,0,70,ESC);
+    if(W>=760){const zf=H*.36;B(0,W,yb,Dp-25,70,zf-gap/2,c);B(0,W/2-gap/2,yb,Dp-25,zf+gap/2,H,c);B(W/2+gap/2,W,yb,Dp-25,zf+gap/2,H,c);
+      B(60,W-60,Dp-25,Dp,zf-120,zf-100,INOX);B(W/2-50,W/2-30,Dp-25,Dp,zf+150,zf+150+H*.4,INOX);B(W/2+30,W/2+50,Dp-25,Dp,zf+150,zf+150+H*.4,INOX);
+      B(W*.62,W*.62+140,Dp-26,Dp-24,H-330,H-260,PRETO)}
+    else{const zf=H*.7;B(0,W,yb,Dp-25,70,zf-gap/2,c);B(0,W,yb,Dp-25,zf+gap/2,H,c);B(W-70,W-50,Dp-25,Dp,zf-120-H*.35,zf-120,INOX);B(W-70,W-50,Dp-25,Dp,zf+60,zf+60+H*.15,INOX)}
+    break}
+  case 'fogao':{const zm=H-60,ns=W>=700?5:4;B(40,W-40,0,Dp-60,0,70,PRETO);B(0,W,0,Dp-30,70,zm,c);
+    B(40,W-40,Dp-30,Dp-10,110,zm-170,PRETO);B(90,W-90,Dp-12,Dp-9,170,zm-240,VID);B(60,W-60,Dp-10,Dp,zm-210,zm-190,INOX);
+    B(0,W,Dp-30,Dp-5,zm-150,zm,ESC);for(let i=0;i<ns;i++){const x=W*(i+1)/(ns+1);Dc(x,Dp-5,zm-75,22,INOX,'n')}
+    B(0,W,0,Dp,zm,zm+12,PRETO);const bc=ns===5?[[.22,.27,1],[.78,.27,1],[.22,.73,1],[.78,.73,1],[.5,.5,1.25]]:[[.28,.28,1],[.72,.28,1],[.28,.72,1],[.72,.72,1]];
+    bc.forEach(([fx,fy,k])=>{Dc(W*fx,Dp*(1-fy),zm+14,45*k,'#3c3f43');Dc(W*fx,Dp*(1-fy),zm+16,26*k,'#111214')});
+    B(0,W,0,20,zm+12,H,'#2c3036','vidro');break}
+  case 'cooktop':{B(0,W,0,Dp,0,H,PRETO);const ind=H<55,zs=W>=700?[[.2,.3,.7],[.8,.3,.7],[.2,.72,.8],[.8,.72,.8],[.5,.5,1.2]]:[[.27,.3,1],[.73,.3,.8],[.27,.72,.8],[.73,.72,1]];
+    zs.forEach(([fx,fy,k])=>{const x=W*fx,y=Dp*(1-fy),r=Math.min(W,Dp)*.17*k;if(ind){Dc(x,y,H+1,r,'#5d6166');Dc(x,y,H+2,r-10,PRETO)}else{Dc(x,y,H+1,r*.75,'#3c3f43');Dc(x,y,H+3,r*.42,'#111214')}});
+    B(W*.3,W*.7,Dp*.03,Dp*.1,H,H+1,'#3a3d41');break}
+  case 'forno':{const pn=95;B(0,W,0,Dp-50,0,H,esc_);B(0,W,Dp-50,Dp-25,H-pn,H,ESC);B(W*.42,W*.58,Dp-26,Dp-24,H-pn+28,H-28,'#0c3b52');
+    Dc(W*.18,Dp-25,H-pn/2,20,INOX,'n');Dc(W*.82,Dp-25,H-pn/2,20,INOX,'n');
+    B(0,W,Dp-50,Dp-25,0,H-pn-4,PRETO);B(70,W-70,Dp-26,Dp-24,60,H-pn-80,VID);B(50,W-50,Dp-25,Dp,H-pn-55,H-pn-38,c);break}
+  case 'micro':{const pw=Math.min(130,W*.24);B(0,W,0,Dp-25,0,H,esc_);B(0,W-pw,Dp-25,Dp,0,H,PRETO);B(45,W-pw-45,Dp-1,Dp,45,H-45,VID);
+    B(W-pw,W,Dp-25,Dp,0,H,'#33363a');B(W-pw+20,W-20,Dp-1,Dp,H-80,H-40,'#0c3b52');for(let i=0;i<3;i++)B(W-pw+20,W-20,Dp-1,Dp,H-130-i*45,H-100-i*45,'#4a4e53');break}
+  case 'coifa':{const hc=80,cw=Math.min(280,W*.45),cd=Math.min(250,Dp*.5);B(0,W,0,Dp,0,hc,c);B(20,W-20,40,Dp-20,-2,0,'#7d8288');
+    B(W*.08,W*.92,0,Dp*.85,hc,hc+90,c);B(W*.18,W*.82,0,Dp*.65,hc+90,hc+150,c);B(W/2-cw/2,W/2+cw/2,0,cd,hc+150,H,c);
+    for(let i=0;i<4;i++)B(W*.3+i*W*.1,W*.3+i*W*.1+W*.05,Dp-1,Dp,25,45,'#3a6ea5');break}
+  case 'lava_loucas':{B(40,W-40,0,Dp-60,0,80,PRETO);B(0,W,0,Dp-30,80,H,esc_);B(0,W,Dp-30,Dp,90,H-100,c);B(0,W,Dp-30,Dp,H-98,H,ESC);
+    B(W*.62,W*.85,Dp-1,Dp,H-70,H-35,'#0c3b52');B(W*.25,W*.75,Dp,Dp+1,H-150,H-130,INOX);break}
+  case 'lavadora':{if(H>=950){const zt=H-170;B(0,W,0,Dp,0,zt,c);B(10,W-10,140,Dp-15,zt,zt+15,cl);B(W*.15,W*.85,180,Dp-50,zt+15,zt+17,'#6d8299','vidro');
+      Dc(W/2,(140+Dp)/2,zt+18,Math.min(W,Dp-180)*.32,'#aeb9c4');B(0,W,0,130,zt,H,cl);B(W*.35,W*.65,129,131,zt+60,H-40,'#0c3b52')}
+    else{B(0,W,0,Dp,0,H,c);B(0,W,Dp-2,Dp,H-120,H,cl);B(25,W*.35,Dp-1,Dp+1,H-100,H-30,'#d9dcdf');Dc(W*.8,Dp,H-60,25,ESC,'n');
+      const r=Math.min(W,H)*.33,zc=(H-120)*.5;Dc(W/2,Dp,zc,r,'#b9bdc2','n');Dc(W/2,Dp+1,zc,r*.78,VID,'n')}break}
+  case 'cuba':case 'lavatorio':{const e=o.k==='cuba'?18:22,cc=o.k==='cuba'?c:'#f4f4f2',fd=mistura(cc,'#000000',.3);
+    B(0,W,0,Dp,0,e,fd);B(0,e,0,Dp,0,H,cc);B(W-e,W,0,Dp,0,H,cc);B(e,W-e,0,e,0,H,cc);B(e,W-e,Dp-e,Dp,0,H,cc);Dc(W/2,Dp/2,e+1,22,ESC);break}
+  case 'torneira':{const t=Math.min(W,50);B(W/2-t/2,W/2+t/2,0,t,0,H,c);B(W/2-t*.35,W/2+t*.35,t,Dp,H-35,H,c);B(W/2-t*.3,W/2+t*.3,Dp-35,Dp,H-90,H-35,c);
+    B(W/2-8,W/2+8,0,t,H,H+50,mistura(c,'#000000',.15));break}
+  case 'vaso':{const zs=Math.min(400,H*.52);B(W*.22,W*.78,180,Dp-140,0,zs-150,c);B(15,W-15,170,Dp,zs-150,zs-20,c);B(10,W-10,165,Dp+5,zs-20,zs,mistura(c,'#000000',.06));
+    B(5,W-5,0,175,zs,H,c);Dc(W/2,90,H+1,28,'#c9ccd0');break}
+  case 'tv':{B(0,W,0,Dp,0,H,c);B(12,W-12,Dp-1,Dp+1,30,H-12,'#22303d');B(W/2-15,W/2+15,Dp,Dp+1,10,22,'#5d6166');break}
+  case 'ar':{B(0,W,0,Dp,0,H,c);B(25,W-25,Dp-1,Dp+1,25,70,'#c9ccd0');B(W*.75,W*.75+60,Dp,Dp+1,H*.55,H*.55+25,'#0c3b52');break}
+  case 'cama':{const zc=Math.min(500,H*.46),cab=60;B(0,W,0,cab,0,H,mistura(c,'#000000',.15));B(30,W-30,cab,Dp-30,0,zc-230,'#3b3d40');B(0,W,cab,Dp,zc-230,zc-200,c);
+    B(10,W-10,cab+5,Dp-10,zc-200,zc,'#f1eee8');B(10,W-10,cab+500,Dp-10,zc,zc+25,mistura(c,'#ffffff',.25));
+    const np=W>=1200?2:1,lp=(W-60-(np-1)*40)/np;for(let i=0;i<np;i++){const x=30+i*(lp+40);B(x,x+lp,cab+40,cab+400,zc,zc+110,'#fbfaf7')}break}
+  case 'sofa':{const br=Math.min(170,W*.12),enc=Math.min(230,Dp*.28),zs=Math.min(430,H*.5),ns=W>=1800?3:2,lw=(W-2*br)/ns,cor2=mistura(c,'#ffffff',.12);
+    [[40,40],[W-80,40],[40,Dp-80],[W-80,Dp-80]].forEach(([x,y])=>B(x,x+40,y,y+40,0,80,'#3b3d40'));
+    B(0,W,0,Dp,80,zs-140,mistura(c,'#000000',.1));B(0,br,0,Dp,80,Math.min(H,zs+200),c);B(W-br,W,0,Dp,80,Math.min(H,zs+200),c);B(br,W-br,0,enc,zs-140,H,c);
+    for(let i=0;i<ns;i++){const x=br+i*lw;B(x+4,x+lw-4,enc,Dp-10,zs-140,zs,cor2);B(x+4,x+lw-4,enc,enc+170,zs,H-60,cor2)}break}
+  case 'mesa':{const e=Math.min(40,H*.06),pe=55,r=40;B(0,W,0,Dp,H-e,H,c);[[r,r],[W-r-pe,r],[r,Dp-r-pe],[W-r-pe,Dp-r-pe]].forEach(([x,y])=>B(x,x+pe,y,y+pe,0,H-e,mistura(c,'#000000',.15)));break}
+  default:B(0,W,0,Dp,0,H,c)}
+  return {P,D:Ds}}
+// elevação (vista de frente) do aparelho
+function objElev(b,real){const {P,D}=pecasObjeto(b.o),Y=z=>-z;let s='';const fr=P.slice().sort((p,q)=>p[3]-q[3]||p[4]-q[4]);
+  fr.forEach(p=>{const cor=real?p[6]:b.cS;s+=`<rect x="${p[0]}" y="${Y(p[5])}" width="${p[1]-p[0]}" height="${p[5]-p[4]}" style="fill:${cor};fill-opacity:${real?(p[7]==='vidro'?.35:1):.12};stroke:${real?'#2a2e33':b.cS}" stroke-width="${real?.6:1}" vector-effect="non-scaling-stroke"/>`});
+  D.filter(d=>d.eixo==='n').forEach(d=>{s+=`<circle cx="${d.c[0]}" cy="${Y(d.c[2])}" r="${d.r}" style="fill:${real?d.cor:'none'};stroke:${real?'#2a2e33':b.cS}" stroke-width=".6" vector-effect="non-scaling-stroke"/>`});
+  return s}
+// planta (vista de cima) do aparelho, no sistema da parede
+function objPlanta(b,w,real){const {P,D}=pecasObjeto(b.o),Pt=(u,n)=>[(w.ax+w.ux*u+w.ix*n).toFixed(1),(-(w.ay+w.uy*u+w.iy*n)).toFixed(1)].join(',');let s='';
+  P.slice().sort((p,q)=>p[5]-q[5]).forEach(p=>{if(p[7]==='vidro')return;s+=`<polygon points="${Pt(p[0],p[2])} ${Pt(p[1],p[2])} ${Pt(p[1],p[3])} ${Pt(p[0],p[3])}" style="fill:${real?p[6]:'none'};fill-opacity:${real?.85:0};stroke:${real?'#2a2e33':b.cS};stroke-width:.6px" vector-effect="non-scaling-stroke"/>`});
+  D.filter(d=>d.eixo==='z').forEach(d=>{const [x,y]=Pt(d.c[0],d.c[1]).split(',');s+=`<circle cx="${x}" cy="${y}" r="${d.r}" style="fill:${real?d.cor:'none'};stroke:${real?'#2a2e33':b.cS}" stroke-width=".6" vector-effect="non-scaling-stroke"/>`});
+  return s}
 
 /* ================= TABELA DE PREÇOS NO APARELHO (editar na rua; sincroniza entre os aparelhos) ================= */
 let precoBusca='',precoSoZero=false;
@@ -2439,7 +2527,9 @@ document.addEventListener('click',async e=>{
       const el=document.querySelector(`[data-k="v:${v.id}:comp"],[data-k="v:${v.id}:larg"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
       toast(f==='tampo'?`Tampo ${v.comp} × ${v.prof} na parede ${letra(v.parede)}`:'Painel na parede '+letra(v.parede));break;}
     case 'addJ':{if(!A.paredes.length){toast('Adicione uma parede primeiro');return}if(!A.objetos)A.objetos=[];
-      const o=novoObjeto(f,selW||A.paredes[0].id);A.objetos.push(o);salvar();render();
+      const o=novoObjeto(f,selW||A.paredes[0].id),z0=+o.z,z1=z0+(+o.alt);
+      o.dist=Math.max(0,...A.objetos.filter(x=>x.parede===o.parede&&+x.z<z1&&(+x.z)+(+x.alt)>z0).map(x=>(+x.dist||0)+(+x.larg||0)));
+      A.objetos.push(o);salvar();render();
       const el=document.querySelector(`[data-k="j:${o.id}:dist"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'});toast(nomeObjeto(o)+' na parede '+letra(o.parede));break;}
     case 'delJ':if(!dupla(b))return;A.objetos=(A.objetos||[]).filter(v=>v.id!==id);salvar();render();break;
     case 'mPrecos':if(view!=='diag'&&view!=='ajuda'&&view!=='sync'&&view!=='precos')prevView=view;view='precos';render();scrollTo(0,0);break;
@@ -2520,6 +2610,7 @@ document.addEventListener('change',async e=>{
   const o=el.dataset.o;if(!o)return;const t=obj(o,el.dataset.id);if(!t)return;
   let v=el.value;if(el.dataset.t==='b')v=el.checked;else if(el.dataset.t==='n'){v=v.trim()===''?null:num(v);if(v!=null)v=Math.round(v)}
   t[el.dataset.f]=v;salvar();
+  if(o==='j'&&el.dataset.f==='mod'){const md=modeloObj(t);if(md){Object.assign(t,{larg:md.larg,alt:md.alt,prof:md.prof});salvar()}}
   if(o==='m'&&el.dataset.f==='k'&&MOVEIS[v]){const pr=MOVEIS[v];delete t.superior;delete t.prof_caixa;Object.assign(t,camposModelo(pr));salvar()}
   if(el.dataset.full)render();else if(view==='amb')parcial();
   if(view==='amb'&&o==='w')atualizarSobras();else if(o==='p')titulo(P.cliente||'Novo projeto',P.endereco||'Projeto');
