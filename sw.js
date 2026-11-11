@@ -1,6 +1,6 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Com internet: busca a versão nova e atualiza a cópia. Sem internet: usa a cópia guardada.
-const CACHE = 'medidor-glm-v36';
+const CACHE = 'medidor-glm-v37';
 const FOTOS_PISO = 'medidor-pisos-v1';   // fotos das cores do piso e do MDF: baixam uma vez e ficam guardadas
 const ARQUIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
@@ -16,7 +16,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
-  if ((e.request.url.includes('/pisos/') || e.request.url.includes('/mdf/'))) {
+  if ((e.request.url.includes('/pisos/') || e.request.url.includes('mdf_cores'))) {
     e.respondWith(caches.open(FOTOS_PISO).then(c => c.match(e.request).then(r => r || fetch(e.request).then(n => { if (n.ok) c.put(e.request, n.clone()); return n; }))));
     return;
   }
