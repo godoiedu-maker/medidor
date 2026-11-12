@@ -1,6 +1,6 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Com internet: busca a versão nova e atualiza a cópia. Sem internet: usa a cópia guardada.
-const CACHE = 'medidor-glm-v43';
+const CACHE = 'medidor-glm-v44';
 const FOTOS_PISO = 'medidor-pisos-v1';   // fotos das cores do piso e do MDF: baixam uma vez e ficam guardadas
 const ARQUIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
